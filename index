@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IHG 員工價住宿額度與飯店限額儀表板</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #1f4e78;
+      --accent: #d97706;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --danger: #dc2626;
+      --success: #059669;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 1.25rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    header h1 { margin: 0; font-size: 1.35rem; }
+    .container { max-width: 1180px; margin: 1.5rem auto; padding: 0 1rem; }
+    .card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 1.5rem;
+    }
+    .config-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr auto;
+      gap: 0.75rem;
+      align-items: end;
+    }
+    @media (max-width: 768px) {
+      .config-grid { grid-template-columns: 1fr; }
+    }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--muted); }
+    input, select, button {
+      padding: 0.6rem 0.85rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-size: 0.95rem;
+    }
+    input, select { width: 100%; }
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    button:hover { opacity: 0.92; }
+    button.secondary { background: #475569; }
+    button.outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+    .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .status-msg { font-size: 0.88rem; margin-top: 0.6rem; color: var(--muted); }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .kpi-box {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.1rem 1.25rem;
+      border-left: 4px solid var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .kpi-box.warn { border-left-color: var(--accent); }
+    .kpi-title { font-size: 0.85rem; color: var(--muted); }
+    .kpi-val { font-size: 1.65rem; font-weight: 700; margin: 0.25rem 0; }
+    .kpi-sub { font-size: 0.82rem; color: var(--muted); }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 1.5rem;
+    }
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
+    th { background: #f8fafc; font-weight: 600; color: var(--muted); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .rate-lines div { font-size: 0.85rem; line-height: 1.45; }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .badge-ok { background: #d1fae5; color: var(--success); }
+    .badge-warn { background: #fef3c7; color: var(--accent); }
+    .badge-over { background: #fee2e2; color: var(--danger); }
+    .progress-bg { background: #e2e8f0; height: 6px; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+    .progress-fill { height: 100%; background: var(--primary); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>IHG 員工價住宿額度與飯店限額儀表板</h1>
+  <div>
+    <label for="yearSelect" style="color:#cbd5e1; display:inline; margin-right:6px;">檢視年度：</label>
+    <select id="yearSelect" style="width:auto; padding:0.35rem 0.6rem;">
+      <option value="2026" selected>2026 年</option>
+      <option value="2027">2027 年</option>
+    </select>
+  </div>
+</header>
+
+<div class="container">
+  <!-- 連線設定區塊 -->
+  <div class="card">
+    <div class="config-grid">
+      <div>
+        <label for="gasUrl">Google Apps Script 網頁應用程式網址（僅存於本機瀏覽器）</label>
+        <input type="url" id="gasUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec" />
+      </div>
+      <div>
+        <label for="calendarSelect">選擇要分析的 Google 日曆</label>
+        <select id="calendarSelect">
+          <option value="">請先載入日曆清單...</option>
+        </select>
+      </div>
+      <div>
+        <button id="btnLoadEvents">讀取日曆並計算</button>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="outline" id="btnAuth">1. 首次開啟 Google 帳號授權</button>
+      <button class="secondary" id="btnFetchCalendars">2. 取得我的日曆清單</button>
+    </div>
+    <div class="status-msg" id="statusMsg">
+      提示：首次使用請先貼上 GAS 部署網址，點擊「1. 首次開啟 Google 帳號授權」完成登入同意後，再點擊「2. 取得我的日曆清單」。
+    </div>
+  </div>
+
+  <!-- KPI 摘要卡片 -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- 指標一：員工價方案額度總覽 + 圖表 -->
+  <div class="grid-2">
+    <div class="card">
+      <h2 style="margin-top:0; font-size:1.1rem;">【員工價方案額度總覽】（依年度標記計算）</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>方案名稱</th>
+            <th class="num">年度額度上限</th>
+            <th class="num">已使用晚數</th>
+            <th class="num">剩餘晚數</th>
+          </tr>
+        </thead>
+        <tbody id="quotaTableBody"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2 style="margin-top:0; font-size:1.1rem;">各方案已用晚數分布</h2>
+      <canvas id="rateChart" height="190"></canvas>
+    </div>
+  </div>
+
+  <!-- 指標二：各飯店年度住宿總覽 -->
+  <div class="card">
+    <h2 style="margin-top:0; font-size:1.1rem;">【各飯店年度住宿總覽】（依日曆年計算，單一飯店限額 14 晚）</h2>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>飯店名稱</th>
+            <th>員工價房晚明細（三方案）</th>
+            <th class="num">員工價合計</th>
+            <th class="num">其他方案</th>
+            <th class="num">晚數合計</th>
+            <th class="num">員工價住宿比</th>
+            <th>飯店年度限額（14 晚）</th>
+          </tr>
+        </thead>
+        <tbody id="hotelTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  const RATE_LIMITS = {
+    '優享價': 30,
+    '彈性價': null, // 無上限
+    '友人價': 50
+  };
+  const HOTEL_ANNUAL_CAP = 14;
+
+  let allEvents = [];
+  let chartInstance = null;
+
+  const gasUrlInput = document.getElementById('gasUrl');
+  const calendarSelect = document.getElementById('calendarSelect');
+  const yearSelect = document.getElementById('yearSelect');
+  const statusMsg = document.getElementById('statusMsg');
+
+  // 載入本機儲存的設定
+  gasUrlInput.value = localStorage.getItem('ihg_gas_url') || '';
+
+  function setStatus(text, isError = false) {
+    statusMsg.textContent = text;
+    statusMsg.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+  }
+
+  // 1. 開啟新分頁觸發 Google 內建帳號授權
+  document.getElementById('btnAuth').addEventListener('click', () => {
+    const url = gasUrlInput.value.trim();
+    if (!url) return setStatus('請先輸入 Google Apps Script 網址。', true);
+    localStorage.setItem('ihg_gas_url', url);
+    window.open(url, '_blank');
+    setStatus('已開啟授權分頁，請在該分頁登入 Google 並同意日曆讀取權限，完成後回來點擊「2. 取得我的日曆清單」。');
+  });
+
+  // 2. 取得使用者的 Google 日曆清單
+  document.getElementById('btnFetchCalendars').addEventListener('click', async () => {
+    const url = gasUrlInput.value.trim();
+    if (!url) return setStatus('請先輸入 Google Apps Script 網址。', true);
+    localStorage.setItem('ihg_gas_url', url);
+
+    setStatus('正在讀取您的 Google 日曆清單...');
+    try {
+      const res = await fetch(`${url}?action=listCalendars`, { redirect: 'follow' });
+      const data = await res.json();
+      if (data.status !== 'success') throw new Error(data.message);
+
+      calendarSelect.innerHTML = '';
+      const savedCalId = localStorage.getItem('ihg_calendar_id');
+      data.calendars.forEach(cal => {
+        const opt = document.createElement('option');
+        opt.value = cal.id;
+        opt.textContent = cal.name + (cal.isPrimary ? ' (主日曆)' : '');
+        if (cal.id === savedCalId) opt.selected = true;
+        calendarSelect.appendChild(opt);
+      });
+      setStatus(`成功載入 ${data.calendars.length} 個日曆，請選擇日曆後點擊「讀取日曆並計算」。`);
+    } catch (err) {
+      setStatus('讀取失敗：請確認已完成「1. 首次開啟 Google 帳號授權」，且 GAS 部署權限設為「存取網頁應用程式的使用者」。', true);
+    }
+  });
+
+  // 3. 讀取指定日曆活動並渲染儀表板
+  document.getElementById('btnLoadEvents').addEventListener('click', async () => {
+    const url = gasUrlInput.value.trim();
+    const calId = calendarSelect.value;
+    if (!url || !calId) return setStatus('請先完成網址輸入與日曆選擇。', true);
+
+    localStorage.setItem('ihg_gas_url', url);
+    localStorage.setItem('ihg_calendar_id', calId);
+    setStatus('正在抓取住宿日曆資料並進行公式計算...');
+
+    try {
+      const res = await fetch(`${url}?action=getEvents&calendarId=${encodeURIComponent(calId)}`, { redirect: 'follow' });
+      const data = await res.json();
+      if (data.status !== 'success') throw new Error(data.message);
+
+      allEvents = data.events || [];
+      renderDashboard();
+      setStatus(`已成功同步「${data.calendarName}」，共解析 ${allEvents.length} 筆住宿紀錄。`);
+    } catch (err) {
+      setStatus(`資料讀取錯誤：${err.message}`, true);
+    }
+  });
+
+  yearSelect.addEventListener('change', () => {
+    if (allEvents.length > 0) renderDashboard();
+  });
+
+  function renderDashboard() {
+    const targetYear = parseInt(yearSelect.value, 10);
+
+    // 指標一計算：依「quotaYear（年度標記）」計算員工價額度
+    const quotaUsed = { '優享價': 0, '彈性價': 0, '友人價': 0 };
+    allEvents.forEach(ev => {
+      if (ev.quotaYear === targetYear && quotaUsed.hasOwnProperty(ev.rateType)) {
+        quotaUsed[ev.rateType] += ev.nights;
+      }
+    });
+
+    const totalEmpQuotaNights = quotaUsed['優享價'] + quotaUsed['彈性價'] + quotaUsed['友人價'];
+
+    // 更新 KPI 卡片
+    document.getElementById('kpiGrid').innerHTML = `
+      <div class="kpi-box">
+        <div class="kpi-title">${targetYear} 標記員工價總晚數</div>
+        <div class="kpi-val">${totalEmpQuotaNights} 晚</div>
+        <div class="kpi-sub">優享 ${quotaUsed['優享價']} ＋ 彈性 ${quotaUsed['彈性價']} ＋ 友人 ${quotaUsed['友人價']}</div>
+      </div>
+      <div class="kpi-box ${30 - quotaUsed['優享價'] <= 5 ? 'warn' : ''}">
+        <div class="kpi-title">優享價剩餘額度（上限 30 晚）</div>
+        <div class="kpi-val">${30 - quotaUsed['優享價']} 晚</div>
+        <div class="kpi-sub">已使用 ${quotaUsed['優享價']} / 30 晚</div>
+      </div>
+      <div class="kpi-box ${50 - quotaUsed['友人價'] <= 8 ? 'warn' : ''}">
+        <div class="kpi-title">友人價剩餘額度（上限 50 晚）</div>
+        <div class="kpi-val">${50 - quotaUsed['友人價']} 晚</div>
+        <div class="kpi-sub">已使用 ${quotaUsed['友人價']} / 50 晚</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-title">彈性價已使用（無上限）</div>
+        <div class="kpi-val">${quotaUsed['彈性價']} 晚</div>
+        <div class="kpi-sub">不佔用優享或友人額度</div>
+      </div>
+    `;
+
+    // 渲染【員工價方案額度總覽】表格
+    const quotaRows = ['優享價', '彈性價', '友人價'].map(type => {
+      const limit = RATE_LIMITS[type];
+      const used = quotaUsed[type];
+      const remaining = limit === null ? '無上限' : `${limit - used} 晚`;
+      const limitText = limit === null ? '無上限' : `${limit} 晚`;
+      return `
+        <tr>
+          <td><strong>IHG One Pass ${type}</strong></td>
+          <td class="num">${limitText}</td>
+          <td class="num">${used} 晚</td>
+          <td class="num"><strong>${remaining}</strong></td>
+        </tr>
+      `;
+    }).join('');
+    document.getElementById('quotaTableBody').innerHTML = quotaRows;
+
+    // 繪製方案分布長條圖
+    const ctx = document.getElementById('rateChart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['優享價 (上限30)', '彈性價 (無上限)', '友人價 (上限50)'],
+        datasets: [
+          {
+            label: '已使用晚數',
+            data: [quotaUsed['優享價'], quotaUsed['彈性價'], quotaUsed['友人價']],
+            backgroundColor: '#1f4e78'
+          },
+          {
+            label: '剩餘可用晚數',
+            data: [Math.max(0, 30 - quotaUsed['優享價']), 0, Math.max(0, 50 - quotaUsed['友人價'])],
+            backgroundColor: '#cbd5e1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+      }
+    });
+
+    // 指標二計算：依「stayYear（實際入住日曆年）」彙整各飯店住宿
+    const hotelMap = {};
+    allEvents.forEach(ev => {
+      if (ev.stayYear !== targetYear) return;
+      if (!hotelMap[ev.hotel]) {
+        hotelMap[ev.hotel] = { '優享價': 0, '彈性價': 0, '友人價': 0, '其他方案': 0 };
+      }
+      hotelMap[ev.hotel][ev.rateType] += ev.nights;
+    });
+
+    const hotelEntries = Object.entries(hotelMap).sort((a, b) => {
+      const sumA = a[1]['優享價'] + a[1]['彈性價'] + a[1]['友人價'] + a[1]['其他方案'];
+      const sumB = b[1]['優享價'] + b[1]['彈性價'] + b[1]['友人價'] + b[1]['其他方案'];
+      return sumB - sumA;
+    });
+
+    if (hotelEntries.length === 0) {
+      document.getElementById('hotelTableBody').innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted);">${targetYear} 日曆年尚無住宿紀錄</td></tr>`;
+      return;
+    }
+
+    document.getElementById('hotelTableBody').innerHTML = hotelEntries.map(([hotel, counts]) => {
+      const empTotal = counts['優享價'] + counts['彈性價'] + counts['友人價'];
+      const otherTotal = counts['其他方案'];
+      const grandTotal = empTotal + otherTotal;
+      const ratio = grandTotal > 0 ? ((empTotal / grandTotal) * 100).toFixed(1) : '0.0';
+      const remainCap = HOTEL_ANNUAL_CAP - empTotal;
+      const pctCap = Math.min(100, (empTotal / HOTEL_ANNUAL_CAP) * 100);
+
+      let badgeHtml = `<span class="badge badge-ok">剩 ${remainCap} 晚</span>`;
+      if (remainCap < 0) badgeHtml = `<span class="badge badge-over">超額 ${Math.abs(remainCap)} 晚</span>`;
+      else if (remainCap <= 3) badgeHtml = `<span class="badge badge-warn">剩 ${remainCap} 晚</span>`;
+
+      return `
+        <tr>
+          <td><strong>${hotel}</strong></td>
+          <td class="rate-lines">
+            <div>優享價：${counts['優享價']} 晚</div>
+            <div>彈性價：${counts['彈性價']} 晚</div>
+            <div>友人價：${counts['友人價']} 晚</div>
+          </td>
+          <td class="num"><strong>${empTotal} 晚</strong></td>
+          <td class="num">${otherTotal} 晚</td>
+          <td class="num"><strong>${grandTotal} 晚</strong></td>
+          <td class="num">${ratio}%</td>
+          <td>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span>${empTotal} / 14 晚</span>
+              ${badgeHtml}
+            </div>
+            <div class="progress-bg"><div class="progress-fill" style="width:${pctCap}%; background:${remainCap < 0 ? 'var(--danger)' : 'var(--primary)'};"></div></div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+</script>
+</body>
+</html>
