@@ -32,7 +32,7 @@
         </div>
         <div>
           <h1 class="text-lg sm:text-xl font-bold tracking-tight">IHG 員工價住宿統計儀表板</h1>
-          <p class="text-xs text-slate-400">資料來源：Google Apps Script API（2027年起）</p>
+          <p class="text-xs text-slate-400">目標日曆：<span class="text-rose-300 font-medium">陳保志</span> ｜ 資料來源：Google Apps Script API（2027年起）</p>
         </div>
       </div>
 
@@ -66,7 +66,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-500 mb-1">API 讀取年份範圍</label>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">API 讀取年份範圍（預設前後各1年）</label>
           <div class="flex items-center gap-1.5 text-sm">
             <input type="number" id="fetchStartYear" min="2027" max="2099" class="w-20 rounded-lg border border-slate-300 px-2.5 py-1.5 text-center font-medium" />
             <span class="text-slate-400">至</span>
@@ -79,6 +79,10 @@
       </div>
 
       <div class="text-xs text-slate-500 space-y-1 text-right">
+        <div id="statusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-200">
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+          準備同步日曆資料...
+        </div>
         <div id="rateInfo" class="text-[11px] text-slate-400">
           匯率基準載入中...（積分固定 1 pt = 0.16 TWD）
         </div>
@@ -88,21 +92,21 @@
     <!-- KPI 摘要卡片 -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">定級房晚（去重疊）</div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="kpiQualifying" class="text-3xl font-bold text-slate-900">0</span>
+          <span class="text-sm text-slate-500">晚</span>
+        </div>
+        <div class="mt-1 text-xs text-slate-400">同日多房僅計 1 晚定級</div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
         <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">總入住房晚數</div>
         <div class="mt-2 flex items-baseline gap-2">
           <span id="kpiTotalNights" class="text-3xl font-bold text-rose-600">0</span>
           <span class="text-sm text-slate-500">晚</span>
         </div>
         <div id="kpiNightsBreakdown" class="mt-1 text-xs text-slate-500">員工價 0 晚 ｜ 其他方案 0 晚</div>
-      </div>
-    
-      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">定級房晚</div>
-        <div class="mt-2 flex items-baseline gap-2">
-          <span id="kpiQualifying" class="text-3xl font-bold text-slate-900">0</span>
-          <span class="text-sm text-slate-500">晚</span>
-        </div>
-        <div class="mt-1 text-xs text-slate-400">同日僅計 1 晚定級</div>
       </div>
 
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
@@ -234,7 +238,6 @@
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Apps Script 網頁應用程式網址（/exec）</label>
           <input type="url" id="gasUrlInput" placeholder="https://script.google.com/macros/s/xxxxxxxxxxxx/exec" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-rose-500 outline-none" />
-          <p class="text-[11px] text-slate-400 mt-1">儲存後會自動記憶於瀏覽器 localStorage，每次開啟網頁將自動同步最新日曆。</p>
         </div>
 
         <div class="flex items-center gap-2 pt-1">
@@ -243,11 +246,11 @@
         </div>
 
         <div class="bg-slate-50 rounded-xl p-3.5 text-xs space-y-1.5 border border-slate-200">
-          <div class="font-bold text-slate-800">部署檢查重點：</div>
+          <div class="font-bold text-slate-800">呼叫失敗排除重點：</div>
           <ul class="list-disc list-inside space-y-1 text-slate-600">
-            <li>在 Apps Script 點擊「部署 > 新增部署作業 > 網頁應用程式」。</li>
             <li><strong>執行身分</strong> 必須選 <strong>「我」</strong>；<strong>誰可以存取</strong> 必須選 <strong>「所有人」</strong>。</li>
-            <li>若日後修改過 Apps Script 程式碼，需選擇「管理部署作業 > 編輯 > 新版本」才會生效。</li>
+            <li>若共用日曆因權限無法回傳顏色標記，可取消勾選上方「僅讀取番茄紅」開關，改以說明欄格式自動篩選。</li>
+            <li>修改 GAS 程式碼後，務必透過「管理部署作業 > 編輯 > 新版本」重新部署。</li>
           </ul>
         </div>
       </div>
@@ -263,7 +266,8 @@
     // =========================================================================
     // 1. 全域設定與狀態
     // =========================================================================
-    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbysKGnxAr-5PEY8lZFX4vD-Q7ozLa-yddUa_mxvx7Vkih5x_CRvAalxhCoH9V_P75BC/exec'; // 可直接貼入您的 Apps Script /exec 網址，或透過網頁介面儲存
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyDWevi8zV-rEJSx4qjcFQ4jLFeQK9Slw5twdel8UcA_73U34DcIrch_NyGOL08GE-a/exec';
+    const LEGACY_GAS_URL = 'https://script.google.com/macros/s/AKfycbwbDbKci1G3cWNnapYM4FuRk2Wpao0RvNgqFZJ1jxmdJ5ZPennRu0mx-Y9H_zTett0q/exec';
     const MIN_STANDARD_YEAR = 2027;
     const HOTEL_ANNUAL_CAP = 14;
     const POINTS_TO_TWD = 0.16;
@@ -304,7 +308,11 @@
       document.getElementById('fetchStartYear').value = defaultStart;
       document.getElementById('fetchEndYear').value = defaultEnd;
 
-      const savedUrl = localStorage.getItem('ihg_gas_webapp_url') || DEFAULT_GAS_URL;
+      let savedUrl = localStorage.getItem('ihg_gas_webapp_url');
+      if (!savedUrl || savedUrl === LEGACY_GAS_URL) {
+        savedUrl = DEFAULT_GAS_URL;
+        localStorage.setItem('ihg_gas_webapp_url', savedUrl);
+      }
       document.getElementById('gasUrlInput').value = savedUrl;
 
       await fetchLiveExchangeRates();
@@ -336,7 +344,7 @@
     }
 
     // =========================================================================
-    // 3. 透過 Google Apps Script Web App 呼叫日曆資料
+    // 3. 透過 JSONP 呼叫 Google Apps Script Web App（完全避免 CORS 阻擋）
     // =========================================================================
     function toggleSetupModal() {
       const modal = document.getElementById('setupModal');
@@ -351,6 +359,46 @@
       if (url) {
         syncFromGAS();
       }
+    }
+
+    function callGasJsonp(baseUrl, params) {
+      return new Promise((resolve, reject) => {
+        const callbackName = 'ihgGasCb_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        const reqUrl = new URL(baseUrl);
+        Object.entries(params).forEach(([k, v]) => reqUrl.searchParams.set(k, String(v)));
+        reqUrl.searchParams.set('callback', callbackName);
+
+        const script = document.createElement('script');
+        let finished = false;
+
+        const cleanup = () => {
+          finished = true;
+          delete window[callbackName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        };
+
+        const timer = setTimeout(() => {
+          if (!finished) {
+            cleanup();
+            reject(new Error('連線逾時（15秒），請確認網路狀態或 GAS 部署網址'));
+          }
+        }, 15000);
+
+        window[callbackName] = (data) => {
+          clearTimeout(timer);
+          cleanup();
+          resolve(data);
+        };
+
+        script.onerror = () => {
+          clearTimeout(timer);
+          cleanup();
+          reject(new Error('無法載入 API（請確認 GAS「誰可以存取」已設為「所有人」，且已發布為「新版本」）'));
+        };
+
+        script.src = reqUrl.toString();
+        document.body.appendChild(script);
+      });
     }
 
     async function syncFromGAS() {
@@ -370,27 +418,16 @@
       setStatus('loading', '正在透過 Apps Script 讀取「陳保志」日曆...');
 
       try {
-        const reqUrl = new URL(gasUrl);
-        reqUrl.searchParams.set('startYear', String(startYear));
-        reqUrl.searchParams.set('endYear', String(endYear));
-        reqUrl.searchParams.set('strictColor', String(strictColor));
-
-        // 不帶自訂 Header 以避免觸發 CORS Preflight，順暢跟隨 GAS 302 轉址
-        const res = await fetch(reqUrl.toString(), { method: 'GET' });
-        if (!res.ok) {
-          throw new Error(`HTTP 錯誤 (${res.status})，請確認部署權限是否設為「所有人」`);
-        }
-
-        const data = await res.json();
-        if (data.status !== 'success') {
-          throw new Error(data.message || 'Apps Script 回傳錯誤');
+        const data = await callGasJsonp(gasUrl, { startYear, endYear, strictColor });
+        if (!data || data.status !== 'success') {
+          throw new Error((data && data.message) || 'Apps Script 回傳錯誤');
         }
 
         processEvents(data.items || []);
         setStatus('success', `已同步「${data.calendarName}」日曆（${startYear}–${endYear} 年，共 ${allProcessedBookings.length} 筆訂房）`);
       } catch (err) {
         console.error(err);
-        setStatus('error', err.message || '連線失敗，請檢查 GAS 網址與部署設定');
+        setStatus('error', err.message || 'API 呼叫失敗');
       }
     }
 
