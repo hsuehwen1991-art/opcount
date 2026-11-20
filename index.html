@@ -1,282 +1,980 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IHG 員工價住宿與額度儀表板</title>
+  <title>IHG 員工價住宿統計儀表板</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f8fafc;
+    }
+    .table-container::-webkit-scrollbar {
+      height: 8px;
+    }
+    .table-container::-webkit-scrollbar-thumb {
+      background-color: #cbd5e1;
+      border-radius: 4px;
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
+<body class="text-slate-800 antialiased">
 
   <!-- 頂部導覽列 -->
-  <header class="bg-slate-900 text-white shadow-md">
-    <div class="max-w-6xl mx-auto px-4 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="px-2 py-0.5 text-xs font-semibold tracking-wider uppercase bg-amber-500 text-slate-950 rounded">IHG One Rewards</span>
-          <h1 class="text-xl font-bold tracking-tight">員工價住宿與額度統計儀表板</h1>
+  <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-rose-600 flex items-center justify-center font-bold text-lg shadow-inner">
+          IHG
         </div>
-        <p id="lastUpdated" class="text-xs text-slate-400 mt-1">資料來源：Google 日曆即時同步</p>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight">IHG 員工價住宿統計儀表板</h1>
+          <p class="text-xs text-slate-400">目標日曆：<span class="text-rose-300 font-medium">陳保志</span> ｜ 資料來源：Google Apps Script API（2027年起）</p>
+        </div>
       </div>
 
-      <!-- 年份選擇器與重新整理 -->
-      <div class="flex items-center gap-3">
-        <label for="yearSelect" class="text-sm text-slate-300 font-medium">檢視年度：</label>
-        <select id="yearSelect" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-400 focus:outline-none">
-          <option value="2025">2025 年</option>
-          <option value="2026" selected>2026 年</option>
-          <option value="2027">2027 年</option>
-          <option value="2028">2028 年</option>
-        </select>
-        <button id="refreshBtn" onclick="loadDashboard()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm px-4 py-2 rounded-lg transition cursor-pointer">
-          重新整理
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button onclick="loadDemoData()" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs sm:text-sm font-medium transition">
+          載入 2027 範例預覽
+        </button>
+        <button onclick="toggleSetupModal()" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs sm:text-sm font-medium transition">
+          API 網址設定
+        </button>
+        <button onclick="syncFromGAS()" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold shadow transition flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span>立即同步日曆</span>
         </button>
       </div>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
-    <!-- 載入中狀態 -->
-    <div id="loadingBox" class="bg-white rounded-xl shadow-sm border border-slate-200 p-10 text-center">
-      <div class="inline-block w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-      <p class="text-slate-600 font-medium">正在從 Google 日曆讀取並計算住宿資料...</p>
-    </div>
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-    <!-- 錯誤提示 -->
-    <div id="errorBox" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl p-5 text-sm"></div>
+    <!-- 控制列：讀取範圍、顯示年份與即時匯率狀態 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-center gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">儀表板檢視年份</label>
+          <select id="yearSelect" onchange="renderDashboard()" class="rounded-lg border-slate-300 border px-3 py-1.5 text-sm font-semibold text-slate-800 bg-slate-50 focus:ring-2 focus:ring-rose-500 outline-none">
+            <option value="2027">2027 年</option>
+          </select>
+        </div>
 
-    <!-- 主要內容區 -->
-    <div id="dashboardContent" class="hidden space-y-8">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">API 讀取年份範圍（預設前後各1年）</label>
+          <div class="flex items-center gap-1.5 text-sm">
+            <input type="number" id="fetchStartYear" min="2027" max="2099" class="w-20 rounded-lg border border-slate-300 px-2.5 py-1.5 text-center font-medium" />
+            <span class="text-slate-400">至</span>
+            <input type="number" id="fetchEndYear" min="2027" max="2099" class="w-20 rounded-lg border border-slate-300 px-2.5 py-1.5 text-center font-medium" />
+            <button onclick="syncFromGAS()" class="ml-1 px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-medium hover:bg-slate-700 transition">
+              套用範圍
+            </button>
+          </div>
+        </div>
+      </div>
 
-      <!-- 關鍵指標 KPI -->
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <p class="text-xs font-medium text-slate-500">日曆年實際總住宿</p>
-          <p class="text-2xl font-bold text-slate-900 mt-1"><span id="kpiTotalNights">0</span> <span class="text-sm font-normal text-slate-500">晚</span></p>
+      <div class="text-xs text-slate-500 space-y-1 text-right">
+        <div id="statusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-200">
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+          尚未設定 GAS 網址（可先點擊「載入 2027 範例預覽」）
         </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <p class="text-xs font-medium text-slate-500">年度員工價總額度已用</p>
-          <p class="text-2xl font-bold text-amber-600 mt-1"><span id="kpiEmpNights">0</span> <span class="text-sm font-normal text-slate-500">晚</span></p>
+        <div id="rateInfo" class="text-[11px] text-slate-400">
+          匯率基準載入中...（積分固定 1 pt = 0.16 TWD）
         </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <p class="text-xs font-medium text-slate-500">入住飯店數</p>
-          <p class="text-2xl font-bold text-slate-900 mt-1"><span id="kpiHotelCount">0</span> <span class="text-sm font-normal text-slate-500">間</span></p>
-        </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <p class="text-xs font-medium text-slate-500">接近 14 晚限額飯店 (≥10晚)</p>
-          <p class="text-2xl font-bold text-rose-600 mt-1"><span id="kpiWarningHotels">0</span> <span class="text-sm font-normal text-slate-500">間</span></p>
-        </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- 區塊一：員工價方案額度總覽 -->
-      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-          <h2 class="text-base font-bold text-slate-900">員工價方案額度總覽</h2>
-          <span class="text-xs text-slate-500">依日曆標記年度（如 -2026）歸戶計算</span>
+    <!-- KPI 摘要卡片 -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">定級房晚（去重疊）</div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="kpiQualifying" class="text-3xl font-bold text-slate-900">0</span>
+          <span class="text-sm text-slate-500">晚</span>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left">
-            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
-              <tr>
-                <th class="px-6 py-3 font-semibold">方案名稱</th>
-                <th class="px-6 py-3 font-semibold text-right">年度上限</th>
-                <th class="px-6 py-3 font-semibold text-right">已使用晚數</th>
-                <th class="px-6 py-3 font-semibold text-right">剩餘晚數</th>
-                <th class="px-6 py-3 font-semibold w-48">額度使用進度</th>
-              </tr>
-            </thead>
-            <tbody id="planTableBody" class="divide-y divide-slate-100"></tbody>
-          </table>
-        </div>
-      </section>
+        <div class="mt-1 text-xs text-slate-400">同日多房僅計 1 晚定級</div>
+      </div>
 
-      <!-- 區塊二：各飯店年度住宿總覽 -->
-      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-          <h2 class="text-base font-bold text-slate-900">各飯店年度住宿總覽</h2>
-          <span class="text-xs text-slate-500">依日曆年（1/1～12/31）實際入住晚數計算，單一飯店上限 14 晚</span>
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">總入住房晚數</div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="kpiTotalNights" class="text-3xl font-bold text-rose-600">0</span>
+          <span class="text-sm text-slate-500">晚</span>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left">
-            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
-              <tr>
-                <th class="px-6 py-3 font-semibold">飯店名稱</th>
-                <th class="px-6 py-3 font-semibold">員工價方案晚數</th>
-                <th class="px-6 py-3 font-semibold text-right">其他方案晚數</th>
-                <th class="px-6 py-3 font-semibold text-right">總晚數 / 年度限額</th>
-                <th class="px-6 py-3 font-semibold text-right">剩餘可住</th>
-                <th class="px-6 py-3 font-semibold text-right">住宿佔比</th>
-              </tr>
-            </thead>
-            <tbody id="hotelTableBody" class="divide-y divide-slate-100"></tbody>
-          </table>
-        </div>
-      </section>
+        <div id="kpiNightsBreakdown" class="mt-1 text-xs text-slate-500">員工價 0 晚 ｜ 其他方案 0 晚</div>
+      </div>
 
-      <!-- 區塊三：日曆讀取明細核對 -->
-      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h2 class="text-base font-bold text-slate-900">日曆行程讀取明細（供雙人核對）</h2>
-          <span id="bookingCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">0 筆</span>
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">現金支出總計（台幣）</div>
+        <div class="mt-2 flex items-baseline gap-1">
+          <span class="text-sm font-semibold text-slate-500">NT$</span>
+          <span id="kpiCashSpend" class="text-3xl font-bold text-slate-900">0</span>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left">
-            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
-              <tr>
-                <th class="px-6 py-3 font-semibold">入住 ～ 退房</th>
-                <th class="px-6 py-3 font-semibold">識別飯店名稱</th>
-                <th class="px-6 py-3 font-semibold">方案與歸屬年度</th>
-                <th class="px-6 py-3 font-semibold text-right">訂單總晚數</th>
-                <th class="px-6 py-3 font-semibold text-right">計入本年日曆晚數</th>
-              </tr>
-            </thead>
-            <tbody id="bookingTableBody" class="divide-y divide-slate-100"></tbody>
-          </table>
-        </div>
-      </section>
+        <div id="kpiAvgRate" class="mt-1 text-xs text-slate-400">付費房晚平均每晚 NT$ 0</div>
+      </div>
 
-    </div>
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">積分兌換總計</div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="kpiPointsTotal" class="text-3xl font-bold text-indigo-600">0</span>
+          <span class="text-sm text-slate-500">積分</span>
+        </div>
+        <div id="kpiPointsValue" class="mt-1 text-xs text-slate-500">約折合台幣 NT$ 0（總價值 NT$ 0）</div>
+      </div>
+    </section>
+
+    <!-- 圖表區塊 -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 lg:col-span-2">
+        <h2 class="text-base font-bold text-slate-800 mb-4">各月份房晚與現金支出分佈</h2>
+        <div class="h-64">
+          <canvas id="monthlyChart"></canvas>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <h2 class="text-base font-bold text-slate-800 mb-4">價格方案晚數佔比</h2>
+        <div class="h-64 flex items-center justify-center">
+          <canvas id="planChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- 表格 1：員工價方案額度總覽 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200">
+        <h2 class="text-base font-bold text-slate-800">員工價方案額度總覽</h2>
+        <p class="text-xs text-slate-500 mt-0.5">依方案後方年度標記（如 -2026、-2027）分別計算跨年度額度池</p>
+      </div>
+      <div class="table-container overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-5 py-3">價格方案</th>
+              <th id="thPrevUsed" class="px-5 py-3 text-right">2026已使用晚數</th>
+              <th id="thPrevRem" class="px-5 py-3 text-right">2026剩餘可用晚數</th>
+              <th id="thCurrUsed" class="px-5 py-3 text-right">2027已使用晚數</th>
+              <th id="thCurrRem" class="px-5 py-3 text-right">2027剩餘可用晚數</th>
+              <th class="px-5 py-3 text-right">年度額度上限</th>
+            </tr>
+          </thead>
+          <tbody id="quotaOverviewBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 表格 2：各飯店年度住宿總覽 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200">
+        <h2 class="text-base font-bold text-slate-800">各飯店年度住宿總覽（<span id="hotelOverviewYear">2027</span> 日曆年）</h2>
+        <p class="text-xs text-slate-500 mt-0.5">單一飯店在同一日曆年內使用員工價方案上限為 14 晚</p>
+      </div>
+      <div class="table-container overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-5 py-3">飯店名稱</th>
+              <th class="px-5 py-3">員工價方案晚數</th>
+              <th class="px-5 py-3">年度限額晚數</th>
+              <th class="px-5 py-3 text-right">其他方案晚數</th>
+              <th class="px-5 py-3 text-right">晚數合計</th>
+              <th class="px-5 py-3 text-right">住宿比</th>
+            </tr>
+          </thead>
+          <tbody id="hotelOverviewBody" class="divide-y divide-slate-100"></tbody>
+          <tfoot id="hotelOverviewFoot" class="bg-slate-50 font-bold text-slate-800 border-t border-slate-200"></tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- 表格 3：住宿明細清單 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-800">住宿明細清單（依入住日期由近到遠排列）</h2>
+          <p class="text-xs text-slate-500 mt-0.5">同日多房自動拆列；外幣依即時匯率換算台幣整數</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <input type="text" id="searchInput" oninput="renderDetailTable()" placeholder="搜尋飯店或價格方案..." class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:ring-2 focus:ring-rose-500 outline-none" />
+          <button onclick="exportCSV()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition">
+            匯出 CSV
+          </button>
+        </div>
+      </div>
+      <div class="table-container overflow-x-auto">
+        <table class="w-full text-sm text-left whitespace-nowrap">
+          <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-4 py-3">飯店名稱</th>
+              <th class="px-4 py-3">入住日</th>
+              <th class="px-4 py-3">退房日</th>
+              <th class="px-4 py-3 text-center">定級房晚</th>
+              <th class="px-4 py-3">價格方案</th>
+              <th class="px-4 py-3">員工價額度房晚</th>
+              <th class="px-4 py-3">飯店年度限額</th>
+              <th class="px-4 py-3 text-right">價格</th>
+            </tr>
+          </thead>
+          <tbody id="detailTableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
   </main>
 
+  <!-- Google Apps Script 網址設定彈窗 -->
+  <div id="setupModal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+        <h3 class="text-lg font-bold text-slate-900">Google Apps Script（GAS）Web App 設定</h3>
+        <button onclick="toggleSetupModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-sm text-slate-600">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Apps Script 網頁應用程式網址（/exec）</label>
+          <input type="url" id="gasUrlInput" placeholder="https://script.google.com/macros/s/xxxxxxxxxxxx/exec" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-rose-500 outline-none" />
+          <p class="text-[11px] text-slate-400 mt-1">儲存後會自動記憶於瀏覽器 localStorage，每次開啟網頁將自動同步最新日曆。</p>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="strictColorCheck" checked class="rounded text-rose-600 focus:ring-rose-500" />
+          <label for="strictColorCheck" class="text-xs font-medium text-slate-700">僅讀取「番茄紅（colorId: 11）」全天行程</label>
+        </div>
+
+        <div class="bg-slate-50 rounded-xl p-3.5 text-xs space-y-1.5 border border-slate-200">
+          <div class="font-bold text-slate-800">部署檢查重點：</div>
+          <ul class="list-disc list-inside space-y-1 text-slate-600">
+            <li>在 Apps Script 點擊「部署 > 新增部署作業 > 網頁應用程式」。</li>
+            <li><strong>執行身分</strong> 必須選 <strong>「我」</strong>；<strong>誰可以存取</strong> 必須選 <strong>「所有人」</strong>。</li>
+            <li>若日後修改過 Apps Script 程式碼，需選擇「管理部署作業 > 編輯 > 新版本」才會生效。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-200">
+        <button onclick="toggleSetupModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-600 hover:bg-slate-50">取消</button>
+        <button onclick="saveSettings()" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold">儲存並同步</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // 請填入你在 Google Apps Script 部署後取得的 Web App 網址
-    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxlAsvlrNzw1y-SaB5mi86mh_mpHhHwuZ2fDqmLf-Mqhvqy3tWP-uCh52gqQSTH4PI6/exec';
+    // =========================================================================
+    // 1. 全域設定與狀態
+    // =========================================================================
+    const DEFAULT_GAS_URL = ''; // 可直接貼入您的 Apps Script /exec 網址，或透過網頁介面儲存
+    const MIN_STANDARD_YEAR = 2027;
+    const HOTEL_ANNUAL_CAP = 14;
+    const POINTS_TO_TWD = 0.16;
 
-    const yearSelect = document.getElementById('yearSelect');
-    yearSelect.addEventListener('change', loadDashboard);
+    const EMPLOYEE_PLANS = {
+      'IHG One Pass 優享價': { limit: 30, order: 1 },
+      'IHG One Pass 彈性價': { limit: Infinity, order: 2 },
+      'IHG One Pass 友人價': { limit: 50, order: 3 }
+    };
 
-    async function loadDashboard() {
-      const year = yearSelect.value;
-      const loadingBox = document.getElementById('loadingBox');
-      const errorBox = document.getElementById('errorBox');
-      const content = document.getElementById('dashboardContent');
+    let exchangeRates = {
+      TWD: 1,
+      USD: 32.0,
+      THB: 0.95,
+      VND: 0.00126,
+      JPY: 0.21,
+      EUR: 34.5,
+      CNY: 4.4,
+      HKD: 4.1,
+      SGD: 23.8,
+      KRW: 0.023,
+      MYR: 7.2
+    };
 
-      loadingBox.classList.remove('hidden');
-      errorBox.classList.add('hidden');
-      content.classList.add('hidden');
+    let allProcessedBookings = [];
+    let currentYearProcessed = [];
+    let monthlyChartInstance = null;
+    let planChartInstance = null;
+
+    // =========================================================================
+    // 2. 初始化：年份範圍、匯率與自動同步
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', async () => {
+      const currentYear = new Date().getFullYear();
+      const defaultStart = Math.max(MIN_STANDARD_YEAR, currentYear - 1);
+      const defaultEnd = Math.max(MIN_STANDARD_YEAR, currentYear + 1);
+
+      document.getElementById('fetchStartYear').value = defaultStart;
+      document.getElementById('fetchEndYear').value = defaultEnd;
+
+      const savedUrl = localStorage.getItem('ihg_gas_webapp_url') || DEFAULT_GAS_URL;
+      document.getElementById('gasUrlInput').value = savedUrl;
+
+      await fetchLiveExchangeRates();
+
+      if (savedUrl) {
+        await syncFromGAS();
+      }
+    });
+
+    async function fetchLiveExchangeRates() {
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/TWD');
+        const data = await res.json();
+        if (data && data.result === 'success' && data.rates) {
+          ['USD', 'THB', 'VND', 'JPY', 'EUR', 'CNY', 'HKD', 'SGD', 'KRW', 'MYR'].forEach(cur => {
+            if (data.rates[cur]) {
+              exchangeRates[cur] = 1 / data.rates[cur];
+            }
+          });
+          document.getElementById('rateInfo').textContent =
+            `即時匯率已更新：1 USD ≈ ${exchangeRates.USD.toFixed(2)} TWD ｜ 1 THB ≈ ${exchangeRates.THB.toFixed(3)} TWD ｜ 1 積分 = 0.16 TWD`;
+          return;
+        }
+      } catch (e) {
+        console.warn('即時匯率取得失敗，使用內建預設匯率', e);
+      }
+      document.getElementById('rateInfo').textContent =
+        `使用預設匯率：1 USD = ${exchangeRates.USD.toFixed(2)} TWD ｜ 1 THB = ${exchangeRates.THB.toFixed(2)} TWD ｜ 1 積分 = 0.16 TWD`;
+    }
+
+    // =========================================================================
+    // 3. 透過 Google Apps Script Web App 呼叫日曆資料
+    // =========================================================================
+    function toggleSetupModal() {
+      const modal = document.getElementById('setupModal');
+      modal.classList.toggle('hidden');
+      modal.classList.toggle('flex');
+    }
+
+    function saveSettings() {
+      const url = document.getElementById('gasUrlInput').value.trim();
+      localStorage.setItem('ihg_gas_webapp_url', url);
+      toggleSetupModal();
+      if (url) {
+        syncFromGAS();
+      }
+    }
+
+    async function syncFromGAS() {
+      const gasUrl = (document.getElementById('gasUrlInput').value || DEFAULT_GAS_URL).trim();
+      if (!gasUrl) {
+        toggleSetupModal();
+        return;
+      }
+
+      const startYear = Math.max(MIN_STANDARD_YEAR, parseInt(document.getElementById('fetchStartYear').value, 10) || MIN_STANDARD_YEAR);
+      const endYear = Math.max(startYear, parseInt(document.getElementById('fetchEndYear').value, 10) || startYear);
+      const strictColor = document.getElementById('strictColorCheck').checked;
+
+      document.getElementById('fetchStartYear').value = startYear;
+      document.getElementById('fetchEndYear').value = endYear;
+
+      setStatus('loading', '正在透過 Apps Script 讀取「陳保志」日曆...');
 
       try {
-        if (GAS_API_URL.includes('請替換成你的部署ID')) {
-          throw new Error('尚未設定 GAS_API_URL，請先在 index.html 中填入 Google Apps Script 部署網址。');
+        const reqUrl = new URL(gasUrl);
+        reqUrl.searchParams.set('startYear', String(startYear));
+        reqUrl.searchParams.set('endYear', String(endYear));
+        reqUrl.searchParams.set('strictColor', String(strictColor));
+
+        // 不帶自訂 Header 以避免觸發 CORS Preflight，順暢跟隨 GAS 302 轉址
+        const res = await fetch(reqUrl.toString(), { method: 'GET' });
+        if (!res.ok) {
+          throw new Error(`HTTP 錯誤 (${res.status})，請確認部署權限是否設為「所有人」`);
         }
 
-        const response = await fetch(`${GAS_API_URL}?year=${year}`);
-        if (!response.ok) throw new Error(`HTTP 錯誤狀態碼：${response.status}`);
-        
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        const data = await res.json();
+        if (data.status !== 'success') {
+          throw new Error(data.message || 'Apps Script 回傳錯誤');
+        }
 
-        renderDashboard(data);
-        loadingBox.classList.add('hidden');
-        content.classList.remove('hidden');
+        processEvents(data.items || []);
+        setStatus('success', `已同步「${data.calendarName}」日曆（${startYear}–${endYear} 年，共 ${allProcessedBookings.length} 筆訂房）`);
       } catch (err) {
-        loadingBox.classList.add('hidden');
-        errorBox.textContent = `讀取失敗：${err.message}`;
-        errorBox.classList.remove('hidden');
+        console.error(err);
+        setStatus('error', err.message || '連線失敗，請檢查 GAS 網址與部署設定');
       }
     }
 
-    function renderDashboard(data) {
-      document.getElementById('lastUpdated').textContent = `資料來源：Google 日曆即時同步（更新時間：${data.updatedAt}）`;
+    function setStatus(type, text) {
+      const badge = document.getElementById('statusBadge');
+      const styles = {
+        loading: ['bg-blue-50 text-blue-700 border-blue-200', 'bg-blue-500 animate-pulse'],
+        success: ['bg-emerald-50 text-emerald-700 border-emerald-200', 'bg-emerald-500'],
+        error: ['bg-rose-50 text-rose-700 border-rose-200', 'bg-rose-500'],
+        demo: ['bg-indigo-50 text-indigo-700 border-indigo-200', 'bg-indigo-500']
+      };
+      const [boxCls, dotCls] = styles[type] || styles.loading;
+      badge.className = `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium border ${boxCls}`;
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full ${dotCls}"></span>${text}`;
+    }
 
-      // 1. KPI 卡片
-      const totalEmpUsed = data.planSummary.reduce((sum, p) => sum + p.used, 0);
-      const warningHotels = data.hotelSummary.filter(h => h.totalNights >= 10).length;
+    // =========================================================================
+    // 4. 資料解析與核心計算引擎
+    // =========================================================================
+    function parseLocalDate(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
 
-      document.getElementById('kpiTotalNights').textContent = data.grandTotalNights;
-      document.getElementById('kpiEmpNights').textContent = totalEmpUsed;
-      document.getElementById('kpiHotelCount').textContent = data.hotelSummary.length;
-      document.getElementById('kpiWarningHotels').textContent = warningHotels;
+    function formatDateSlash(dateStr) {
+      return dateStr.replace(/-/g, '/');
+    }
 
-      // 2. 員工價方案額度總覽
-      const planBody = document.getElementById('planTableBody');
-      planBody.innerHTML = data.planSummary.map(p => {
-        const limitText = p.limit !== null ? `${p.limit} 晚` : '無上限';
-        const remText = p.limit !== null ? `${p.remaining} 晚` : '—';
-        let barHtml = '<span class="text-xs text-slate-400">無上限限制</span>';
-        
-        if (p.limit !== null) {
-          const pct = Math.min(100, Math.round((p.used / p.limit) * 100));
-          const barColor = p.overLimit ? 'bg-rose-600' : (pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500');
-          barHtml = `
-            <div class="flex items-center gap-2">
-              <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div class="${barColor} h-2 rounded-full" style="width: ${pct}%"></div>
-              </div>
-              <span class="text-xs text-slate-500 w-10 text-right">${pct}%</span>
-            </div>
-          `;
+    function stripHtmlToLines(desc) {
+      if (!desc) return [];
+      const withNewlines = desc
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<[^>]+>/g, '');
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = withNewlines;
+      return textarea.value
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+    }
+
+    function parsePriceString(rawPrice) {
+      const str = (rawPrice || '').trim();
+      const ptsMatch = str.match(/([\d,]+)\s*(?:積分|點|pts?|points?)/i);
+      if (ptsMatch) {
+        const points = parseInt(ptsMatch[1].replace(/,/g, ''), 10) || 0;
+        const twd = Math.round(points * POINTS_TO_TWD);
+        return {
+          isPoints: true,
+          points,
+          twd,
+          display: `${points.toLocaleString()} 積分（約${twd.toLocaleString()}元）`
+        };
+      }
+
+      const numMatch = str.match(/([\d,]+(?:\.\d+)?)/);
+      const amount = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 0;
+
+      let rate = 1;
+      if (/US\$|USD|美金|\$/i.test(str) && !/NT\$|TWD|HK\$|SG\$/i.test(str)) {
+        rate = exchangeRates.USD;
+      } else if (/THB|฿|泰銖/i.test(str)) {
+        rate = exchangeRates.THB;
+      } else if (/VND|₫|越南盾/i.test(str)) {
+        rate = exchangeRates.VND;
+      } else if (/JPY|¥|日圓|日幣/i.test(str)) {
+        rate = exchangeRates.JPY;
+      } else if (/EUR|€|歐元/i.test(str)) {
+        rate = exchangeRates.EUR;
+      } else if (/CNY|RMB|人民幣/i.test(str)) {
+        rate = exchangeRates.CNY;
+      } else if (/HK\$|HKD|港幣/i.test(str)) {
+        rate = exchangeRates.HKD;
+      } else if (/SG\$|SGD|新幣/i.test(str)) {
+        rate = exchangeRates.SGD;
+      } else if (/KRW|₩|韓元/i.test(str)) {
+        rate = exchangeRates.KRW;
+      } else if (/MYR|馬幣/i.test(str)) {
+        rate = exchangeRates.MYR;
+      }
+
+      const twd = Math.round(amount * rate);
+      return {
+        isPoints: false,
+        points: 0,
+        twd,
+        display: `${twd.toLocaleString()} 元`
+      };
+    }
+
+    function parsePlanInfo(planRaw, fallbackYear) {
+      const cleaned = (planRaw || '').trim();
+      const suffixMatch = cleaned.match(/^(.*?)-(\d{4})$/);
+      const basePlan = suffixMatch ? suffixMatch[1].trim() : cleaned;
+      const quotaYear = suffixMatch ? parseInt(suffixMatch[2], 10) : fallbackYear;
+      const isEmployeePlan = Object.prototype.hasOwnProperty.call(EMPLOYEE_PLANS, basePlan);
+
+      return {
+        rawPlan: cleaned,
+        basePlan,
+        quotaYear,
+        isEmployeePlan
+      };
+    }
+
+    function processEvents(events) {
+      const strictColor = document.getElementById('strictColorCheck').checked;
+      const rawBookings = [];
+
+      events.forEach(ev => {
+        if (!ev.start || !ev.start.date || !ev.end || !ev.end.date) return;
+
+        const checkInYear = parseInt(ev.start.date.slice(0, 4), 10);
+        if (checkInYear < MIN_STANDARD_YEAR) return;
+
+        if (strictColor && String(ev.colorId) !== '11') return;
+
+        const lines = stripHtmlToLines(ev.description);
+        if (lines.length < 2) return;
+
+        const hotelName = (ev.summary || '未命名飯店').trim();
+        const checkInStr = ev.start.date;
+        const checkOutStr = ev.end.date;
+        const dIn = parseLocalDate(checkInStr);
+        const dOut = parseLocalDate(checkOutStr);
+        const nights = Math.max(0, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
+
+        rawBookings.push({
+          hotelName,
+          checkIn: checkInStr,
+          checkOut: checkOutStr,
+          stayYear: checkInYear,
+          stayMonth: parseInt(checkInStr.slice(5, 7), 10),
+          nights,
+          planInfo: parsePlanInfo(lines[0], checkInYear),
+          priceInfo: parsePriceString(lines[1])
+        });
+
+        if (lines.length >= 4) {
+          rawBookings.push({
+            hotelName,
+            checkIn: checkInStr,
+            checkOut: checkOutStr,
+            stayYear: checkInYear,
+            stayMonth: parseInt(checkInStr.slice(5, 7), 10),
+            nights,
+            planInfo: parsePlanInfo(lines[2], checkInYear),
+            priceInfo: parsePriceString(lines[3])
+          });
+        }
+      });
+
+      rawBookings.sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.checkOut.localeCompare(b.checkOut));
+
+      const occupiedDatesByYear = {};
+      const quotaUsedTracker = {};
+      const hotelUsedTracker = {};
+
+      allProcessedBookings = rawBookings.map(item => {
+        const y = item.stayYear;
+        if (!occupiedDatesByYear[y]) occupiedDatesByYear[y] = new Set();
+
+        let qualifyingNights = 0;
+        const startD = parseLocalDate(item.checkIn);
+        for (let i = 0; i < item.nights; i++) {
+          const cur = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + i);
+          const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+          if (!occupiedDatesByYear[y].has(iso)) {
+            occupiedDatesByYear[y].add(iso);
+            qualifyingNights++;
+          }
         }
 
-        return `
-          <tr class="hover:bg-slate-50/80">
-            <td class="px-6 py-3.5 font-medium text-slate-900">${p.planName}</td>
-            <td class="px-6 py-3.5 text-right text-slate-600">${limitText}</td>
-            <td class="px-6 py-3.5 text-right font-semibold ${p.overLimit ? 'text-rose-600' : 'text-slate-900'}">${p.used} 晚</td>
-            <td class="px-6 py-3.5 text-right font-semibold ${p.limit !== null && p.remaining <= 3 ? 'text-amber-600' : 'text-emerald-600'}">${remText}</td>
-            <td class="px-6 py-3.5">${barHtml}</td>
-          </tr>
-        `;
-      }).join('');
+        let employeeQuotaDisplay = '0晚（不計入）';
+        let hotelLimitDisplay = '不計入';
+        let hotelLimitExceeded = false;
 
-      // 3. 各飯店年度住宿總覽
-      const hotelBody = document.getElementById('hotelTableBody');
-      if (data.hotelSummary.length === 0) {
-        hotelBody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-400">本年度尚無符合條件的住宿紀錄</td></tr>`;
+        if (item.planInfo.isEmployeePlan) {
+          const basePlan = item.planInfo.basePlan;
+          const qYear = item.planInfo.quotaYear;
+          const qKey = `${qYear}_${basePlan}`;
+          quotaUsedTracker[qKey] = (quotaUsedTracker[qKey] || 0) + item.nights;
+
+          const cap = EMPLOYEE_PLANS[basePlan].limit;
+          if (cap === Infinity) {
+            employeeQuotaDisplay = `${item.nights}晚（剩餘不限）`;
+          } else {
+            const rem = cap - quotaUsedTracker[qKey];
+            employeeQuotaDisplay = rem >= 0
+              ? `${item.nights}晚（剩餘${rem}晚）`
+              : `${item.nights}晚（超額${Math.abs(rem)}晚）`;
+          }
+
+          const hKey = `${y}_${item.hotelName}`;
+          hotelUsedTracker[hKey] = (hotelUsedTracker[hKey] || 0) + item.nights;
+          const hUsed = hotelUsedTracker[hKey];
+          hotelLimitDisplay = `已用${hUsed}晚`;
+          if (hUsed > HOTEL_ANNUAL_CAP) hotelLimitExceeded = true;
+        }
+
+        return {
+          ...item,
+          qualifyingNights,
+          employeeQuotaDisplay,
+          hotelLimitDisplay,
+          hotelLimitExceeded
+        };
+      });
+
+      const years = Array.from(new Set(allProcessedBookings.map(b => b.stayYear))).sort();
+      const yearSelect = document.getElementById('yearSelect');
+      const prevSelected = parseInt(yearSelect.value, 10);
+      yearSelect.innerHTML = '';
+      if (years.length === 0) {
+        yearSelect.innerHTML = `<option value="${MIN_STANDARD_YEAR}">${MIN_STANDARD_YEAR} 年</option>`;
       } else {
-        hotelBody.innerHTML = data.hotelSummary.map(h => {
-          // 員工價方案晚數依方案名稱分行顯示
-          const planEntries = Object.entries(h.plans);
-          const planLinesHtml = planEntries.length > 0
-            ? planEntries.map(([name, nights]) => `<div><span class="inline-block w-14 text-slate-500">${name}：</span><span class="font-medium text-slate-800">${nights} 晚</span></div>`).join('')
-            : '<span class="text-slate-400">—</span>';
-
-          const limitBadge = h.isOverLimit
-            ? `<span class="text-rose-600 font-bold">${h.totalNights} / ${h.annualLimit} 晚 (超額)</span>`
-            : `<span class="font-semibold text-slate-900">${h.totalNights}</span> <span class="text-slate-400">/ ${h.annualLimit} 晚</span>`;
-
-          return `
-            <tr class="hover:bg-slate-50/80 align-top">
-              <td class="px-6 py-3.5 font-semibold text-slate-900">${h.hotelName}</td>
-              <td class="px-6 py-3.5 space-y-1 text-xs">${planLinesHtml}</td>
-              <td class="px-6 py-3.5 text-right text-slate-600">${h.otherNights > 0 ? `${h.otherNights} 晚` : '—'}</td>
-              <td class="px-6 py-3.5 text-right">${limitBadge}</td>
-              <td class="px-6 py-3.5 text-right font-medium ${h.remainingLimit <= 2 ? 'text-rose-600' : 'text-emerald-600'}">${h.remainingLimit} 晚</td>
-              <td class="px-6 py-3.5 text-right text-slate-700 font-medium">${h.sharePercent}%</td>
-            </tr>
-          `;
-        }).join('');
+        years.forEach(yr => {
+          const opt = document.createElement('option');
+          opt.value = yr;
+          opt.textContent = `${yr} 年`;
+          yearSelect.appendChild(opt);
+        });
+        if (years.includes(prevSelected)) {
+          yearSelect.value = prevSelected;
+        } else {
+          const curYr = new Date().getFullYear();
+          yearSelect.value = years.includes(curYr) ? curYr : years[0];
+        }
       }
 
-      // 4. 日曆讀取明細
-      const bookingBody = document.getElementById('bookingTableBody');
-      document.getElementById('bookingCountBadge').textContent = `${data.bookings.length} 筆`;
-      if (data.bookings.length === 0) {
-        bookingBody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">無相關行程明細</td></tr>`;
-      } else {
-        bookingBody.innerHTML = data.bookings.map(b => {
-          const planBadge = b.quotaYear
-            ? `<span class="px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-800 font-medium">${b.planName}-${b.quotaYear}</span>`
-            : `<span class="px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-600">${b.planName}</span>`;
-
-          return `
-            <tr class="hover:bg-slate-50/80">
-              <td class="px-6 py-3 text-slate-600 whitespace-nowrap">${b.checkIn} ～ ${b.checkOut}</td>
-              <td class="px-6 py-3 font-medium text-slate-900" title="原始標題：${b.rawTitle}">${b.hotelName}</td>
-              <td class="px-6 py-3">${planBadge}</td>
-              <td class="px-6 py-3 text-right text-slate-600">${b.totalNights} 晚</td>
-              <td class="px-6 py-3 text-right font-semibold text-slate-900">${b.nightsInYear} 晚</td>
-            </tr>
-          `;
-        }).join('');
-      }
+      renderDashboard();
     }
 
-    // 頁面開啟時自動載入預設年份
-    loadDashboard();
+    // =========================================================================
+    // 5. 渲染儀表板（KPI、圖表、三張統計表）
+    // =========================================================================
+    function renderDashboard() {
+      const selectedYear = parseInt(document.getElementById('yearSelect').value, 10) || MIN_STANDARD_YEAR;
+      document.getElementById('hotelOverviewYear').textContent = selectedYear;
+
+      currentYearProcessed = allProcessedBookings.filter(b => b.stayYear === selectedYear);
+
+      renderKPIs(currentYearProcessed);
+      renderQuotaOverviewTable(selectedYear);
+      renderHotelOverviewTable(currentYearProcessed);
+      renderDetailTable();
+      renderCharts(currentYearProcessed);
+    }
+
+    function renderKPIs(list) {
+      let qualTotal = 0;
+      let empNights = 0;
+      let otherNights = 0;
+      let cashTwd = 0;
+      let paidNights = 0;
+      let pointsTotal = 0;
+      let pointsTwd = 0;
+
+      list.forEach(b => {
+        qualTotal += b.qualifyingNights;
+        if (b.planInfo.isEmployeePlan) {
+          empNights += b.nights;
+        } else {
+          otherNights += b.nights;
+        }
+
+        if (b.priceInfo.isPoints) {
+          pointsTotal += b.priceInfo.points;
+          pointsTwd += b.priceInfo.twd;
+        } else {
+          cashTwd += b.priceInfo.twd;
+          if (b.priceInfo.twd > 0) paidNights += b.nights;
+        }
+      });
+
+      const totalNights = empNights + otherNights;
+      const avgNight = paidNights > 0 ? Math.round(cashTwd / paidNights) : 0;
+
+      document.getElementById('kpiQualifying').textContent = qualTotal.toLocaleString();
+      document.getElementById('kpiTotalNights').textContent = totalNights.toLocaleString();
+      document.getElementById('kpiNightsBreakdown').textContent = `員工價 ${empNights} 晚 ｜ 其他方案 ${otherNights} 晚`;
+      document.getElementById('kpiCashSpend').textContent = cashTwd.toLocaleString();
+      document.getElementById('kpiAvgRate').textContent = `付費房晚平均每晚 NT$ ${avgNight.toLocaleString()}`;
+      document.getElementById('kpiPointsTotal').textContent = pointsTotal.toLocaleString();
+      document.getElementById('kpiPointsValue').textContent = `約折合台幣 NT$ ${pointsTwd.toLocaleString()}（總價值 NT$ ${(cashTwd + pointsTwd).toLocaleString()}）`;
+    }
+
+    function renderQuotaOverviewTable(selectedYear) {
+      const prevYear = selectedYear - 1;
+      document.getElementById('thPrevUsed').textContent = `${prevYear}已使用晚數`;
+      document.getElementById('thPrevRem').textContent = `${prevYear}剩餘可用晚數`;
+      document.getElementById('thCurrUsed').textContent = `${selectedYear}已使用晚數`;
+      document.getElementById('thCurrRem').textContent = `${selectedYear}剩餘可用晚數`;
+
+      const usage = {};
+      allProcessedBookings.forEach(b => {
+        if (!b.planInfo.isEmployeePlan) return;
+        const key = `${b.planInfo.quotaYear}_${b.planInfo.basePlan}`;
+        usage[key] = (usage[key] || 0) + b.nights;
+      });
+
+      const tbody = document.getElementById('quotaOverviewBody');
+      tbody.innerHTML = '';
+
+      Object.entries(EMPLOYEE_PLANS).forEach(([planName, cfg]) => {
+        const prevUsed = usage[`${prevYear}_${planName}`] || 0;
+        const currUsed = usage[`${selectedYear}_${planName}`] || 0;
+        const isUnlimited = cfg.limit === Infinity;
+
+        const prevRemText = isUnlimited ? '不限' : `${Math.max(0, cfg.limit - prevUsed)} 晚`;
+        const currRemText = isUnlimited ? '不限' : `${Math.max(0, cfg.limit - currUsed)} 晚`;
+        const capText = isUnlimited ? '不限' : `${cfg.limit} 晚`;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50';
+        tr.innerHTML = `
+          <td class="px-5 py-3.5 font-semibold text-slate-800">${planName}</td>
+          <td class="px-5 py-3.5 text-right font-medium text-slate-700">${prevUsed} 晚</td>
+          <td class="px-5 py-3.5 text-right font-semibold ${isUnlimited ? 'text-slate-500' : 'text-emerald-600'}">${prevRemText}</td>
+          <td class="px-5 py-3.5 text-right font-medium text-slate-700">${currUsed} 晚</td>
+          <td class="px-5 py-3.5 text-right font-semibold ${isUnlimited ? 'text-slate-500' : 'text-emerald-600'}">${currRemText}</td>
+          <td class="px-5 py-3.5 text-right text-slate-500">${capText}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderHotelOverviewTable(list) {
+      const hotelMap = {};
+      let grandTotalNights = 0;
+      let grandYouxiang = 0;
+      let grandTanxing = 0;
+      let grandYouren = 0;
+      let grandOther = 0;
+
+      list.forEach(b => {
+        if (!hotelMap[b.hotelName]) {
+          hotelMap[b.hotelName] = {
+            hotelName: b.hotelName,
+            youxiang: 0,
+            tanxing: 0,
+            youren: 0,
+            other: 0
+          };
+        }
+        const h = hotelMap[b.hotelName];
+        if (b.planInfo.basePlan === 'IHG One Pass 優享價') {
+          h.youxiang += b.nights;
+          grandYouxiang += b.nights;
+        } else if (b.planInfo.basePlan === 'IHG One Pass 彈性價') {
+          h.tanxing += b.nights;
+          grandTanxing += b.nights;
+        } else if (b.planInfo.basePlan === 'IHG One Pass 友人價') {
+          h.youren += b.nights;
+          grandYouren += b.nights;
+        } else {
+          h.other += b.nights;
+          grandOther += b.nights;
+        }
+        grandTotalNights += b.nights;
+      });
+
+      const hotels = Object.values(hotelMap).map(h => {
+        const empSum = h.youxiang + h.tanxing + h.youren;
+        const total = empSum + h.other;
+        return { ...h, empSum, total };
+      }).sort((a, b) => b.total - a.total || b.empSum - a.empSum);
+
+      const tbody = document.getElementById('hotelOverviewBody');
+      tbody.innerHTML = '';
+
+      if (hotels.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-slate-400">該年度尚無符合條件的住宿紀錄</td></tr>`;
+        document.getElementById('hotelOverviewFoot').innerHTML = '';
+        return;
+      }
+
+      hotels.forEach(h => {
+        const rem = HOTEL_ANNUAL_CAP - h.empSum;
+        const ratio = grandTotalNights > 0 ? ((h.total / grandTotalNights) * 100).toFixed(2) : '0.00';
+        const limitBadge = rem < 0
+          ? `<span class="text-rose-600 font-bold">已用${h.empSum}晚（超額${Math.abs(rem)}晚）</span>`
+          : `已用${h.empSum}晚（剩餘${rem}晚）`;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50';
+        tr.innerHTML = `
+          <td class="px-5 py-3.5 font-bold text-slate-800">${h.hotelName}</td>
+          <td class="px-5 py-3.5 text-xs leading-relaxed text-slate-600">
+            IHG One Pass 優享價${h.youxiang}晚<br>
+            IHG One Pass 彈性價${h.tanxing}晚<br>
+            IHG One Pass 友人價${h.youren}晚
+          </td>
+          <td class="px-5 py-3.5 font-medium text-slate-700">${limitBadge}</td>
+          <td class="px-5 py-3.5 text-right text-slate-600">${h.other} 晚</td>
+          <td class="px-5 py-3.5 text-right font-bold text-slate-900">${h.total} 晚</td>
+          <td class="px-5 py-3.5 text-right font-medium text-slate-600">${ratio}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const grandEmp = grandYouxiang + grandTanxing + grandYouren;
+      document.getElementById('hotelOverviewFoot').innerHTML = `
+        <tr>
+          <td class="px-5 py-3.5">總計</td>
+          <td class="px-5 py-3.5 text-xs">${grandEmp} 晚（優享 ${grandYouxiang} / 彈性 ${grandTanxing} / 友人 ${grandYouren}）</td>
+          <td class="px-5 py-3.5 text-slate-400">—</td>
+          <td class="px-5 py-3.5 text-right">${grandOther} 晚</td>
+          <td class="px-5 py-3.5 text-right text-rose-600">${grandTotalNights} 晚</td>
+          <td class="px-5 py-3.5 text-right">100.00%</td>
+        </tr>
+      `;
+    }
+
+    function renderDetailTable() {
+      const keyword = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      const filtered = currentYearProcessed.filter(b =>
+        !keyword ||
+        b.hotelName.toLowerCase().includes(keyword) ||
+        b.planInfo.rawPlan.toLowerCase().includes(keyword)
+      );
+
+      const tbody = document.getElementById('detailTableBody');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">無符合條件的住宿明細</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(b => {
+        const planBadgeClass = b.planInfo.isEmployeePlan
+          ? 'bg-rose-50 text-rose-700 border-rose-200'
+          : 'bg-indigo-50 text-indigo-700 border-indigo-200';
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition-colors';
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-semibold text-slate-800">${b.hotelName}</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">${formatDateSlash(b.checkIn)}</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">${formatDateSlash(b.checkOut)}</td>
+          <td class="px-4 py-3 text-center font-bold ${b.qualifyingNights > 0 ? 'text-slate-900' : 'text-slate-400'}">${b.qualifyingNights}</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 rounded-md text-xs font-medium border ${planBadgeClass}">
+              ${b.planInfo.rawPlan}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">${b.employeeQuotaDisplay}</td>
+          <td class="px-4 py-3 text-xs font-medium ${b.hotelLimitExceeded ? 'text-rose-600 font-bold' : 'text-slate-700'}">${b.hotelLimitDisplay}</td>
+          <td class="px-4 py-3 text-right font-semibold text-slate-800">${b.priceInfo.display}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderCharts(list) {
+      const monthlyNights = new Array(12).fill(0);
+      const monthlyCash = new Array(12).fill(0);
+      const planCounts = {};
+
+      list.forEach(b => {
+        const mIdx = b.stayMonth - 1;
+        if (mIdx >= 0 && mIdx < 12) {
+          monthlyNights[mIdx] += b.nights;
+          if (!b.priceInfo.isPoints) {
+            monthlyCash[mIdx] += b.priceInfo.twd;
+          }
+        }
+        const pName = b.planInfo.basePlan;
+        planCounts[pName] = (planCounts[pName] || 0) + b.nights;
+      });
+
+      if (monthlyChartInstance) monthlyChartInstance.destroy();
+      monthlyChartInstance = new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+          labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+          datasets: [
+            {
+              label: '總房晚數（晚）',
+              data: monthlyNights,
+              backgroundColor: 'rgba(225, 29, 72, 0.8)',
+              borderRadius: 6,
+              yAxisID: 'y'
+            },
+            {
+              label: '現金支出（NT$）',
+              data: monthlyCash,
+              type: 'line',
+              borderColor: '#0f172a',
+              backgroundColor: '#0f172a',
+              tension: 0.3,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, position: 'left', ticks: { stepSize: 1 } },
+            y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+
+      if (planChartInstance) planChartInstance.destroy();
+      planChartInstance = new Chart(document.getElementById('planChart'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(planCounts),
+          datasets: [{
+            data: Object.values(planCounts),
+            backgroundColor: ['#e11d48', '#f59e0b', '#10b981', '#6366f1', '#8b5cf6', '#64748b']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function exportCSV() {
+      if (currentYearProcessed.length === 0) return;
+      const headers = ['飯店名稱', '入住日', '退房日', '定級房晚', '價格方案', '員工價額度房晚', '飯店年度限額', '價格'];
+      const rows = currentYearProcessed.map(b => [
+        `"${b.hotelName}"`,
+        formatDateSlash(b.checkIn),
+        formatDateSlash(b.checkOut),
+        b.qualifyingNights,
+        `"${b.planInfo.rawPlan}"`,
+        `"${b.employeeQuotaDisplay}"`,
+        `"${b.hotelLimitDisplay}"`,
+        `"${b.priceInfo.display}"`
+      ]);
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `IHG_住宿統計_${document.getElementById('yearSelect').value}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // =========================================================================
+    // 6. 2027 範例資料（供預覽與驗算）
+    // =========================================================================
+    function loadDemoData() {
+      const sampleEvents = [
+        { summary: '台北大直英迪格酒店', colorId: '11', start: { date: '2027-01-09' }, end: { date: '2027-01-10' }, description: 'IHG One Pass 彈性價-2026\n3149' },
+        { summary: '臺北洲際酒店', colorId: '11', start: { date: '2027-01-15' }, end: { date: '2027-01-16' }, description: 'IHG One Pass 優享價-2026\n3314\nIHG One Pass 優享價-2026\n3313' },
+        { summary: '台中車站智選假日酒店', colorId: '11', start: { date: '2027-01-18' }, end: { date: '2027-01-19' }, description: 'IHG One Pass 友人價-2026\n1571' },
+        { summary: '臺北洲際酒店', colorId: '11', start: { date: '2027-01-22' }, end: { date: '2027-01-24' }, description: 'IHG One Pass 優享價-2026\n6626' },
+        { summary: '台中車站智選假日酒店', colorId: '11', start: { date: '2027-01-24' }, end: { date: '2027-01-25' }, description: 'IHG One Pass 彈性價-2026\n1571' },
+        { summary: '臺中逢甲智選假日酒店', colorId: '11', start: { date: '2027-01-24' }, end: { date: '2027-01-25' }, description: 'IHG One Pass 彈性價-2026\n1663' },
+        { summary: '臺中逢甲智選假日酒店', colorId: '11', start: { date: '2027-01-31' }, end: { date: '2027-02-01' }, description: 'IHG One Pass 彈性價-2026\n1663' },
+        { summary: '臺北洲際酒店', colorId: '11', start: { date: '2027-02-09' }, end: { date: '2027-02-10' }, description: 'IHG One Pass 優享價-2026\n3313\nIHG One Pass 優享價-2026\n3313' },
+        { summary: '台南大員皇冠假日酒店', colorId: '11', start: { date: '2027-02-20' }, end: { date: '2027-02-21' }, description: 'IHG One Pass 彈性價-2026\n4655\nIHG One Pass 彈性價-2026\n4655' },
+        { summary: '臺中逢甲智選假日酒店', colorId: '11', start: { date: '2027-03-07' }, end: { date: '2027-03-08' }, description: 'IHG One Pass 彈性價-2026\n1846' },
+        { summary: '台中車站智選假日酒店', colorId: '11', start: { date: '2027-03-18' }, end: { date: '2027-03-19' }, description: 'IHG One Pass 彈性價-2026\n1952' },
+        { summary: '臺中逢甲智選假日酒店', colorId: '11', start: { date: '2027-03-19' }, end: { date: '2027-03-20' }, description: 'IHG One Pass 彈性價-2026\n2353' },
+        { summary: '下龍灣洲際Halong Bay Resort', colorId: '11', start: { date: '2027-04-03' }, end: { date: '2027-04-05' }, description: '大使免費週末住宿\n17298' },
+        { summary: '河內地標72洲際酒店', colorId: '11', start: { date: '2027-04-05' }, end: { date: '2027-04-06' }, description: 'IHG One Pass 優享價-2026\n2141' },
+        { summary: '河內地標72洲際酒店', colorId: '11', start: { date: '2027-04-06' }, end: { date: '2027-04-07' }, description: 'IHG One Pass 彈性價-2026\n3883' },
+        { summary: '臺中勤美洲際酒店', colorId: '11', start: { date: '2027-05-08' }, end: { date: '2027-05-09' }, description: 'IHG One Pass 優享價-2026\n3765' },
+        { summary: '曼谷素坤逸洲際酒店', colorId: '11', start: { date: '2027-06-09' }, end: { date: '2027-06-10' }, description: '獎勵住宿\n33000 積分' },
+        { summary: '華欣洲際度假酒店', colorId: '11', start: { date: '2027-06-10' }, end: { date: '2027-06-12' }, description: '大使免費週末住宿\n9882' },
+        { summary: '曼谷假日酒店', colorId: '11', start: { date: '2027-06-12' }, end: { date: '2027-06-13' }, description: '獎勵住宿\n21000 積分' },
+        { summary: '臺北洲際酒店', colorId: '11', start: { date: '2027-10-30' }, end: { date: '2027-10-31' }, description: '獎勵住宿\n80000 積分' }
+      ];
+      processEvents(sampleEvents);
+      setStatus('demo', '目前顯示：2027 範例預覽資料（共 23 筆訂房）');
+    }
   </script>
 </body>
 </html>
