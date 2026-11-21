@@ -149,7 +149,6 @@
             <span id="sprintStatusGap" class="font-semibold text-slate-600">距離白金還差 40 晚 ｜ 距離鑽石還差 70 晚</span>
           </div>
 
-          <!-- 分段進度條（含 40 晚白金標線） -->
           <div class="relative h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
             <div id="barRollover" class="h-full bg-slate-400 transition-all duration-500" style="width: 0%" title="去年結轉"></div>
             <div id="barActualStatus" class="h-full bg-sky-500 transition-all duration-500" style="width: 0%" title="今年實住"></div>
@@ -206,7 +205,7 @@
       </div>
     </section>
 
-    <!-- 圖表區塊（7:5 比例，提供圓餅圖外拉指示線充足寬度） -->
+    <!-- 圖表區塊 -->
     <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div class="tech-card rounded-2xl p-5 lg:col-span-7">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -249,7 +248,7 @@
             <span class="w-1.5 h-4 rounded-full bg-sky-500"></span>
             員工價方案額度總覽
           </h2>
-          <p class="text-xs text-slate-500 mt-0.5">依方案後方年度標記（如 -2026、-2027）分別計算跨年度額度池</p>
+          <p class="text-xs text-slate-500 mt-0.5">分別計算跨年度額度池</p>
         </div>
       </div>
       <div class="table-container overflow-x-auto">
@@ -276,7 +275,6 @@
     let monthlyChartInstance = null;
     let planChartInstance = null;
 
-    // 圓餅圖外拉指示線＋圖例與百分比標註外掛（含上下防重疊處理）
     const doughnutCalloutPlugin = {
       id: 'doughnutCalloutPlugin',
       afterDatasetsDraw(chart) {
@@ -287,7 +285,6 @@
         const meta = chart.getDatasetMeta(0);
         if (!meta || !meta.data || meta.data.length === 0) return;
 
-        // 無資料狀態：於圓環中央顯示提示文字
         if (dataset._isEmpty) {
           const arc0 = meta.data[0];
           ctx.save();
@@ -341,7 +338,6 @@
           }
         });
 
-        // 針對左右兩側分別做垂直防重疊調整
         const minGap = 32;
         const topBound = 18;
         const bottomBound = height - 18;
@@ -350,7 +346,6 @@
           if (items.length === 0) return;
           items.sort((a, b) => a.y - b.y);
 
-          // 向下推開重疊項
           for (let i = 0; i < items.length; i++) {
             if (i === 0) {
               items[i].y = Math.max(topBound, items[i].y);
@@ -359,7 +354,6 @@
             }
           }
 
-          // 若最底項超出下邊界，反向往上回推
           if (items[items.length - 1].y > bottomBound) {
             items[items.length - 1].y = bottomBound;
             for (let i = items.length - 2; i >= 0; i--) {
@@ -388,7 +382,6 @@
             : Math.min(p1x - 5, item.cx - item.outerRadius - 14);
           const endX = item.isRight ? kneeX + 8 : kneeX - 8;
 
-          // 繪製外拉折線
           ctx.beginPath();
           ctx.moveTo(p0x, p0y);
           ctx.lineTo(p1x, p1y);
@@ -400,25 +393,21 @@
           ctx.lineJoin = 'round';
           ctx.stroke();
 
-          // 折線末端色彩圓點
           ctx.beginPath();
           ctx.arc(endX, item.y, 2.4, 0, Math.PI * 2);
           ctx.fillStyle = item.color;
           ctx.fill();
 
-          // 計算可用文字寬度避免超出畫布邊緣
           const textX = item.isRight ? endX + 6 : endX - 6;
           const maxTextW = Math.max(56, item.isRight ? (width - textX - 4) : (textX - 4));
 
           ctx.textAlign = item.isRight ? 'left' : 'right';
           ctx.textBaseline = 'middle';
 
-          // 第 1 行：方案名稱
           ctx.font = '600 11px "Noto Sans TC", "Inter", sans-serif';
           ctx.fillStyle = '#334155';
           ctx.fillText(item.label, textX, item.y - 6.5, maxTextW);
 
-          // 第 2 行：百分比（等寬字體搭配對應方案色）
           ctx.font = '700 11px "JetBrains Mono", "Inter", sans-serif';
           ctx.fillStyle = item.color;
           ctx.fillText(item.pctText, textX, item.y + 7.5, maxTextW);
@@ -556,7 +545,7 @@
         const diff = m.nextMilestone.nights - m.totalMilestoneNights;
         nextEl.textContent = `下一里程碑：${m.nextMilestone.nights} 晚（尚差 ${diff} 晚）`;
       } else {
-        nextEl.textContent = '已解鎖全數 100 晚進階獎勵里程碑';
+        nextEl.textContent = '已解鎖全數 70 晚進階獎勵里程碑';
       }
 
       const linkEl = document.getElementById('sprintMilestoneLink');
@@ -628,7 +617,6 @@
         planCounts[pName] = (planCounts[pName] || 0) + b.nights;
       });
 
-      // 1. 各月份房晚與現金支出分佈（預設隱藏現金支出曲線）
       const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
       const barGrad = monthlyCtx.createLinearGradient(0, 0, 0, 280);
       barGrad.addColorStop(0, 'rgba(6, 182, 212, 0.88)');
@@ -707,7 +695,6 @@
         }
       });
 
-      // 2. 價格方案晚數佔比（外拉指示線顯示方案名稱與百分比，關閉下方圖例）
       const planCanvas = document.getElementById('planChart');
       const containerWidth = (planCanvas.parentElement && planCanvas.parentElement.clientWidth) || 420;
       const sidePadding = Math.max(92, Math.min(142, Math.round(containerWidth * 0.31)));
