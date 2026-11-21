@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>各飯店總覽｜IHG 員工價住宿統計儀表板</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f3f7fc;
+      background-image:
+        radial-gradient(circle at 12% 0%, rgba(14, 165, 233, 0.10) 0%, transparent 38%),
+        radial-gradient(circle at 88% 8%, rgba(99, 102, 241, 0.08) 0%, transparent 34%),
+        radial-gradient(#cbd5e1 0.85px, transparent 0.85px);
+      background-size: 100% 100%, 100% 100%, 24px 24px;
+      background-attachment: fixed;
+    }
+
+    .font-mono-num {
+      font-family: 'JetBrains Mono', 'Inter', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tech-card {
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(203, 213, 225, 0.75);
+      box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(14, 165, 233, 0.04);
+    }
+
+    .table-container::-webkit-scrollbar { height: 7px; }
+    .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 9999px; }
+    .table-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; }
+    .table-container::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen">
+
+  <!-- 共用頂部導覽列（由 shared.js 渲染） -->
+  <div id="appHeader"></div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- 共用年份與匯率控制列（由 shared.js 渲染） -->
+    <div id="appControls"></div>
+
+    <!-- 各飯店年度住宿總覽 -->
+    <section class="tech-card rounded-2xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
+        <div>
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-cyan-500"></span>
+            各飯店年度住宿總覽（<span id="hotelOverviewYear">2026</span> 日曆年）
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">飯店年度限額顯示剩餘可用額度（上限 14 晚）；晚數合計以該飯店定級房晚加總計算</p>
+        </div>
+        <span id="hotelCountBadge" class="font-mono-num text-xs font-semibold px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200/70">
+          共 0 間飯店
+        </span>
+      </div>
+      <div class="table-container overflow-x-auto">
+        <table class="w-full text-sm text-left whitespace-nowrap">
+          <thead class="bg-slate-50/90 text-slate-500 text-xs font-semibold border-b border-slate-200/80">
+            <tr>
+              <th class="px-4 py-3">飯店名稱</th>
+              <th class="px-4 py-3 text-right">IHG One Pass 優享價</th>
+              <th class="px-4 py-3 text-right">IHG One Pass 彈性價</th>
+              <th class="px-4 py-3 text-right">IHG One Pass 友人價</th>
+              <th class="px-4 py-3 text-right">飯店年度限額</th>
+              <th class="px-4 py-3 text-right">其他方案</th>
+              <th class="px-4 py-3 text-right">晚數合計</th>
+              <th class="px-4 py-3 text-right">住宿比</th>
+            </tr>
+          </thead>
+          <tbody id="hotelOverviewBody" class="divide-y divide-slate-100"></tbody>
+          <tfoot id="hotelOverviewFoot" class="bg-sky-50/60 font-bold text-slate-800 border-t border-sky-200/70"></tfoot>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="shared.js"></script>
+  <script>
+    function renderHotelOverviewTable(selectedYear, list) {
+      document.getElementById('hotelOverviewYear').textContent = selectedYear;
+
+      const hotelMap = {};
+      let grandYouxiang = 0;
+      let grandTanxing = 0;
+      let grandYouren = 0;
+      let grandOther = 0;
+      let grandQualifyingTotal = 0;
+
+      list.forEach(b => {
+        if (!hotelMap[b.hotelName]) {
+          hotelMap[b.hotelName] = {
+            hotelName: b.hotelName,
+            youxiang: 0,
+            tanxing: 0,
+            youren: 0,
+            other: 0,
+            qualifyingTotal: 0
+          };
+        }
+        const h = hotelMap[b.hotelName];
+        if (b.planInfo.basePlan === 'IHG One Pass 優享價') {
+          h.youxiang += b.nights;
+          grandYouxiang += b.nights;
+        } else if (b.planInfo.basePlan === 'IHG One Pass 彈性價') {
+          h.tanxing += b.nights;
+          grandTanxing += b.nights;
+        } else if (b.planInfo.basePlan === 'IHG One Pass 友人價') {
+          h.youren += b.nights;
+          grandYouren += b.nights;
+        } else {
+          h.other += b.nights;
+          grandOther += b.nights;
+        }
+
+        h.qualifyingTotal += b.qualifyingNights;
+        grandQualifyingTotal += b.qualifyingNights;
+      });
+
+      const hotels = Object.values(hotelMap).map(h => {
+        const empSum = h.youxiang + h.tanxing + h.youren;
+        return { ...h, empSum };
+      }).sort((a, b) => b.qualifyingTotal - a.qualifyingTotal || b.empSum - a.empSum);
+
+      document.getElementById('hotelCountBadge').textContent = `共 ${hotels.length} 間飯店`;
+
+      const tbody = document.getElementById('hotelOverviewBody');
+      tbody.innerHTML = '';
+
+      if (hotels.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="px-5 py-12 text-center text-slate-400">該年度尚無符合條件的住宿紀錄</td></tr>`;
+        document.getElementById('hotelOverviewFoot').innerHTML = '';
+        return;
+      }
+
+      const formatNightCell = (val) => val > 0
+        ? `<span class="text-slate-800 font-semibold">${val} 晚</span>`
+        : `<span class="text-slate-300">0 晚</span>`;
+
+      hotels.forEach(h => {
+        const rem = IHGApp.HOTEL_ANNUAL_CAP - h.empSum;
+        const ratio = grandQualifyingTotal > 0 ? ((h.qualifyingTotal / grandQualifyingTotal) * 100).toFixed(2) : '0.00';
+
+        let limitHtml;
+        if (rem < 0) {
+          limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">超額${Math.abs(rem)}晚</span>`;
+        } else if (rem <= 3) {
+          limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">${rem}晚</span>`;
+        } else {
+          limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/80">${rem}晚</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-sky-50/40 transition-colors';
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-semibold text-slate-800">
+            <div class="flex items-center gap-2.5">
+              ${IHGApp.buildBrandLogoHtml(h.hotelName, 'sm')}
+              <span>${IHGApp.escapeHtml(h.hotelName)}</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.youxiang)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.tanxing)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.youren)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${limitHtml}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.other)}</td>
+          <td class="px-4 py-3 text-right font-mono-num font-bold text-sky-700">${h.qualifyingTotal} 晚</td>
+          <td class="px-4 py-3 text-right font-mono-num font-medium text-slate-600">${ratio}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('hotelOverviewFoot').innerHTML = `
+        <tr>
+          <td class="px-4 py-3.5 text-slate-800">總計</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">${grandYouxiang} 晚</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">${grandTanxing} 晚</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">${grandYouren} 晚</td>
+          <td class="px-4 py-3.5 text-right text-slate-400">—</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">${grandOther} 晚</td>
+          <td class="px-4 py-3.5 text-right font-mono-num text-sky-700">${grandQualifyingTotal} 晚</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">100.00%</td>
+        </tr>
+      `;
+    }
+
+    IHGApp.init({
+      activePage: 'hotels',
+      onRender({ selectedYear, yearBookings }) {
+        renderHotelOverviewTable(selectedYear, yearBookings);
+      }
+    });
+  </script>
+</body>
+</html>
