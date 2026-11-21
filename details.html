@@ -32,6 +32,22 @@
       box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(14, 165, 233, 0.04);
     }
 
+    .sortable-th {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .sortable-th:hover {
+      background-color: rgba(224, 242, 254, 0.55);
+      color: #0369a1;
+    }
+
+    .sortable-th.is-sorted {
+      color: #0284c7;
+      background-color: rgba(240, 249, 255, 0.9);
+    }
+
     .table-container::-webkit-scrollbar { height: 7px; }
     .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 9999px; }
     .table-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; }
@@ -50,10 +66,13 @@
     <section class="tech-card rounded-2xl overflow-hidden">
       <div class="px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
         <div>
-          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-            <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
-            住宿明細清單（依入住日期由近到遠排列）
-          </h2>
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
+              住宿明細清單
+            </h2>
+            <span class="text-[11px] text-slate-400">（點擊表頭可切換升／降冪排序）</span>
+          </div>
           <div class="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>優享價</span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200"><span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>彈性價</span>
@@ -77,14 +96,54 @@
         <table class="w-full text-sm text-left whitespace-nowrap">
           <thead class="bg-slate-50/90 text-slate-500 text-xs font-semibold border-b border-slate-200/80">
             <tr>
-              <th class="px-4 py-3 min-w-[180px] max-w-[240px]">飯店名稱</th>
-              <th class="px-4 py-3">入住日</th>
-              <th class="px-4 py-3">退房日</th>
-              <th class="px-4 py-3 text-center">定級房晚</th>
-              <th class="px-4 py-3">價格方案</th>
-              <th class="px-4 py-3">員工價額度房晚</th>
-              <th class="px-4 py-3">飯店年度限額</th>
-              <th class="px-4 py-3 text-right">價格</th>
+              <th data-sort-key="hotelName" onclick="toggleSort('hotelName')" class="sortable-th px-4 py-3 min-w-[180px] max-w-[240px]">
+                <div class="inline-flex items-center gap-1.5">
+                  <span>飯店名稱</span>
+                  <span class="sort-icon inline-flex flex-col leading-none"></span>
+                </div>
+              </th>
+              <th data-sort-key="checkIn" onclick="toggleSort('checkIn')" class="sortable-th px-4 py-3">
+                <div class="inline-flex items-center gap-1.5">
+                  <span>入住日</span>
+                  <span class="sort-icon inline-flex flex-col leading-none"></span>
+                </div>
+              </th>
+              <th data-sort-key="checkOut" onclick="toggleSort('checkOut')" class="sortable-th px-4 py-3">
+                <div class="inline-flex items-center gap-1.5">
+                  <span>退房日</span>
+                  <span class="sort-icon inline-flex flex-col leading-none"></span>
+                </div>
+              </th>
+              <th data-sort-key="qualifyingNights" onclick="toggleSort('qualifyingNights')" class="sortable-th px-4 py-3 text-center">
+                <div class="inline-flex items-center justify-center gap-1.5">
+                  <span>定級房晚</span>
+                  <span class="sort-icon inline-flex flex-col leading-none"></span>
+                </div>
+              </th>
+              <th data-sort-key="plan" onclick="toggleSort('plan')" class="sortable-th px-4 py-3">
+                <div class="inline-flex items-center gap-1.5">
+                  <span>價格方案</span>
+                  <span class="sort-icon inline-flex flex-col leading-none"></span>
+                </div>
+              </th>
+              <th data-sort-key="employeeQuota" onclick="toggleSort('employeeQuota')" class="sortable-th px-4 py-3">
+                <div class="inline-flex items-center gap-1.5">
+                  <span>員工價額度房晚</span>
+                  <span class="sort-icon inline-flex flex-col leading-none"></span>
+                </div>
+              </th>
+              <th data-sort-key="hotelLimit" onclick="toggleSort('hotelLimit')" class="sortable-th px-4 py-3">
+                <div class="inline-flex items-center gap-1.5">
+                  <span>飯店年度限額</span>
+                  <span class="sort-icon inline-flex flex-col leading-none"></span>
+                </div>
+              </th>
+              <th data-sort-key="price" onclick="toggleSort('price')" class="sortable-th px-4 py-3 text-right">
+                <div class="inline-flex items-center justify-end gap-1.5">
+                  <span>價格</span>
+                  <span class="sort-icon inline-flex flex-col leading-none"></span>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody id="detailTableBody" class="divide-y divide-slate-100"></tbody>
@@ -97,14 +156,108 @@
   <script src="shared.js"></script>
   <script>
     let currentYearList = [];
+    const sortState = {
+      key: 'checkIn',
+      dir: 'asc' // 'asc' | 'desc'
+    };
+
+    function parseHotelLimitValue(displayStr) {
+      const m = String(displayStr || '').match(/已用(\d+)晚/);
+      return m ? parseInt(m[1], 10) : -1;
+    }
+
+    function parseEmployeeQuotaValue(item) {
+      if (!item.planInfo || !item.planInfo.isEmployeePlan) return -1;
+      return Number(item.nights) || 0;
+    }
+
+    function compareBookings(a, b, key, dir) {
+      let cmp = 0;
+      switch (key) {
+        case 'hotelName':
+          cmp = (a.hotelName || '').localeCompare(b.hotelName || '', 'zh-Hant-TW');
+          break;
+        case 'checkIn':
+          cmp = (a.checkIn || '').localeCompare(b.checkIn || '');
+          break;
+        case 'checkOut':
+          cmp = (a.checkOut || '').localeCompare(b.checkOut || '');
+          break;
+        case 'qualifyingNights':
+          cmp = (a.qualifyingNights || 0) - (b.qualifyingNights || 0);
+          break;
+        case 'plan':
+          cmp = (a.planInfo.rawPlan || '').localeCompare(b.planInfo.rawPlan || '', 'zh-Hant-TW');
+          break;
+        case 'employeeQuota':
+          cmp = parseEmployeeQuotaValue(a) - parseEmployeeQuotaValue(b);
+          break;
+        case 'hotelLimit':
+          cmp = parseHotelLimitValue(a.hotelLimitDisplay) - parseHotelLimitValue(b.hotelLimitDisplay);
+          break;
+        case 'price':
+          cmp = (a.priceInfo.twd || 0) - (b.priceInfo.twd || 0);
+          break;
+        default:
+          cmp = 0;
+      }
+
+      if (cmp === 0) {
+        // 次要排序固定依入住日與退房日，確保同值資料順序穩定
+        cmp = (a.checkIn || '').localeCompare(b.checkIn || '') ||
+              (a.checkOut || '').localeCompare(b.checkOut || '');
+        return cmp;
+      }
+
+      return dir === 'asc' ? cmp : -cmp;
+    }
+
+    function toggleSort(key) {
+      if (sortState.key === key) {
+        sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortState.key = key;
+        sortState.dir = 'asc';
+      }
+      renderDetailTable();
+    }
+
+    function updateSortHeaders() {
+      const headers = document.querySelectorAll('th[data-sort-key]');
+      headers.forEach(th => {
+        const key = th.getAttribute('data-sort-key');
+        const iconEl = th.querySelector('.sort-icon');
+        const isActive = sortState.key === key;
+
+        th.classList.toggle('is-sorted', isActive);
+        th.setAttribute('aria-sort', isActive ? (sortState.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+
+        if (!iconEl) return;
+        const upCls = isActive && sortState.dir === 'asc' ? 'text-sky-600' : 'text-slate-300';
+        const downCls = isActive && sortState.dir === 'desc' ? 'text-sky-600' : 'text-slate-300';
+
+        iconEl.innerHTML = `
+          <svg class="w-2.5 h-2.5 -mb-0.5 ${upCls}" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true">
+            <path d="M5 0.5L9.2 5.2H0.8L5 0.5Z"/>
+          </svg>
+          <svg class="w-2.5 h-2.5 ${downCls}" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true">
+            <path d="M5 5.5L0.8 0.8H9.2L5 5.5Z"/>
+          </svg>
+        `;
+      });
+    }
 
     function renderDetailTable() {
+      updateSortHeaders();
+
       const keyword = (document.getElementById('searchInput').value || '').trim().toLowerCase();
-      const filtered = currentYearList.filter(b =>
-        !keyword ||
-        b.hotelName.toLowerCase().includes(keyword) ||
-        b.planInfo.rawPlan.toLowerCase().includes(keyword)
-      );
+      const filtered = currentYearList
+        .filter(b =>
+          !keyword ||
+          b.hotelName.toLowerCase().includes(keyword) ||
+          b.planInfo.rawPlan.toLowerCase().includes(keyword)
+        )
+        .sort((a, b) => compareBookings(a, b, sortState.key, sortState.dir));
 
       document.getElementById('detailCountBadge').textContent = `${filtered.length} 筆`;
 
