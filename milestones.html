@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>進階獎勵｜IHG 員工價住宿統計儀表板</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f3f7fc;
+      background-image:
+        radial-gradient(circle at 12% 0%, rgba(14, 165, 233, 0.10) 0%, transparent 38%),
+        radial-gradient(circle at 88% 8%, rgba(99, 102, 241, 0.08) 0%, transparent 34%),
+        radial-gradient(#cbd5e1 0.85px, transparent 0.85px);
+      background-size: 100% 100%, 100% 100%, 24px 24px;
+      background-attachment: fixed;
+    }
+
+    .font-mono-num {
+      font-family: 'JetBrains Mono', 'Inter', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tech-card {
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(203, 213, 225, 0.75);
+      box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(14, 165, 233, 0.04);
+    }
+
+    .table-container::-webkit-scrollbar { height: 7px; }
+    .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 9999px; }
+    .table-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; }
+    .table-container::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen">
+
+  <div id="appHeader"></div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <div id="appControls"></div>
+
+    <!-- 區塊 1：雙軌房晚拆解卡（會籍定級 vs 進階獎勵） -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <!-- 會籍定級卡 -->
+      <div class="tech-card rounded-2xl p-5 space-y-4 relative overflow-hidden">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-400"></div>
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-800">會籍定級房晚（白金 40 ／ 鑽石 70）</h2>
+            <p class="text-xs text-slate-500 mt-0.5">計入去年結轉房晚、今年實際入住與活動加倍贈送</p>
+          </div>
+          <span id="msTierBadge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 shrink-0">
+            俱樂部會員
+          </span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="rounded-xl bg-slate-50/90 border border-slate-200/80 p-3">
+            <div class="text-[11px] font-medium text-slate-500">去年結轉</div>
+            <div class="mt-1 font-mono-num text-xl font-bold text-slate-700"><span id="msRolloverVal">0</span><span class="text-xs font-normal text-slate-400 ml-0.5">晚</span></div>
+          </div>
+          <div class="rounded-xl bg-sky-50/70 border border-sky-200/70 p-3">
+            <div class="text-[11px] font-medium text-sky-700">今年實住</div>
+            <div class="mt-1 font-mono-num text-xl font-bold text-sky-700"><span id="msActualVal">0</span><span class="text-xs font-normal text-sky-400 ml-0.5">晚</span></div>
+          </div>
+          <div class="rounded-xl bg-teal-50/70 border border-teal-200/70 p-3">
+            <div class="text-[11px] font-medium text-teal-700">活動加倍</div>
+            <div class="mt-1 font-mono-num text-xl font-bold text-teal-700"><span id="msStatusBonusVal">0</span><span class="text-xs font-normal text-teal-400 ml-0.5">晚</span></div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <div class="flex items-baseline justify-between text-xs">
+            <span class="font-mono-num font-bold text-slate-800">合計 <span id="msStatusTotal" class="text-2xl text-indigo-600">0</span> 晚</span>
+            <span id="msStatusGapText" class="font-semibold text-slate-600">距白金還差 40 晚 ｜ 距鑽石還差 70 晚</span>
+          </div>
+          <div class="relative h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
+            <div id="msBarRollover" class="h-full bg-slate-400 transition-all duration-500" style="width: 0%"></div>
+            <div id="msBarActualStatus" class="h-full bg-sky-500 transition-all duration-500" style="width: 0%"></div>
+            <div id="msBarBonusStatus" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%"></div>
+            <div class="absolute top-0 bottom-0 w-0.5 bg-white/90" style="left: 57.14%" title="白金門檻 40 晚"></div>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-slate-400">
+            <span id="msRolloverSourceNote">結轉來源：無結轉房晚</span>
+            <span class="font-mono-num">白金 40 ｜ 鑽石 70</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 進階獎勵卡 -->
+      <div class="tech-card rounded-2xl p-5 space-y-4 relative overflow-hidden">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-cyan-500 to-teal-400"></div>
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-800">進階獎勵房晚（核心目標：40 晚行政酒廊）</h2>
+            <p class="text-xs text-slate-500 mt-0.5">每年 1/1 歸零起算，不含前一年結轉房晚</p>
+          </div>
+          <span id="msLoungeBadge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 shrink-0">
+            行政酒廊衝刺中
+          </span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="rounded-xl bg-sky-50/70 border border-sky-200/70 p-3">
+            <div class="text-[11px] font-medium text-sky-700">今年實住</div>
+            <div class="mt-1 font-mono-num text-xl font-bold text-sky-700"><span id="msActualVal2">0</span><span class="text-xs font-normal text-sky-400 ml-0.5">晚</span></div>
+          </div>
+          <div class="rounded-xl bg-teal-50/70 border border-teal-200/70 p-3">
+            <div class="text-[11px] font-medium text-teal-700">活動加倍</div>
+            <div class="mt-1 font-mono-num text-xl font-bold text-teal-700"><span id="msMilestoneBonusVal">0</span><span class="text-xs font-normal text-teal-400 ml-0.5">晚</span></div>
+          </div>
+          <div class="rounded-xl bg-amber-50/70 border border-amber-200/70 p-3">
+            <div class="text-[11px] font-medium text-amber-700">已解鎖階級</div>
+            <div class="mt-1 font-mono-num text-xl font-bold text-amber-700"><span id="msUnlockedCount">0</span><span class="text-xs font-normal text-amber-500 ml-0.5">/ 9</span></div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <div class="flex items-baseline justify-between text-xs">
+            <span class="font-mono-num font-bold text-slate-800">合計 <span id="msMilestoneTotal" class="text-2xl text-cyan-700">0</span> 晚</span>
+            <span id="msLoungeGapText" class="font-semibold text-amber-700">距離 40 晚年度行政酒廊還差 40 晚</span>
+          </div>
+          <div class="relative h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
+            <div id="msBarActualMilestone" class="h-full bg-gradient-to-r from-sky-500 to-cyan-500 transition-all duration-500" style="width: 0%"></div>
+            <div id="msBarBonusMilestone" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%"></div>
+            <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 50%" title="20 晚"></div>
+            <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 75%" title="30 晚"></div>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-slate-400">
+            <span id="msNextMilestoneNote">達成後請於 90 天內至 IHG App 領取</span>
+            <span class="font-mono-num">20 ｜ 30 ｜ 40 酒廊</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 區塊 2：【IHG活動】日曆追蹤表 -->
+    <section class="tech-card rounded-2xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
+        <div>
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-teal-500"></span>
+            定向加倍活動追蹤（<span id="promoYearLabel">2026</span> 年・來源：【IHG活動】日曆）
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">
+            行程格式：<code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono-num text-[11px]">【IHG 洲際優悅會定向活動：xx房晚加倍】</code>
+            ｜ 結轉格式：<code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono-num text-[11px]">【會員等級結轉】xx晚</code>
+          </p>
+        </div>
+        <span id="actCalStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+          檢查日曆連線中...
+        </span>
+      </div>
+      <div class="table-container overflow-x-auto">
+        <table class="w-full text-sm text-left whitespace-nowrap">
+          <thead class="bg-slate-50/90 text-slate-500 text-xs font-semibold border-b border-slate-200/80">
+            <tr>
+              <th class="px-5 py-3">活動名稱</th>
+              <th class="px-5 py-3">活動期間</th>
+              <th class="px-5 py-3 text-center">適用範圍</th>
+              <th class="px-5 py-3 text-right">活動贈送上限</th>
+              <th class="px-5 py-3 text-right">已觸發贈送</th>
+              <th class="px-5 py-3 text-right">剩餘可送額度</th>
+              <th class="px-5 py-3 w-44">達成進度</th>
+            </tr>
+          </thead>
+          <tbody id="promoTableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 區塊 3：20～100 晚進階獎勵里程碑清單 -->
+    <section class="space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+        <div>
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
+            IHG One Rewards 進階獎勵里程碑（20 – 100 晚）
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">40 晚與 70 晚可任選 2 項福利，其餘階級任選 1 項；每階達成後 90 天內須於官方 App 選取</p>
+        </div>
+      </div>
+
+      <div id="milestoneGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+  </main>
+
+  <script src="shared.js"></script>
+  <script>
+    function renderMilestonesPage(m) {
+      document.getElementById('promoYearLabel').textContent = m.selectedYear;
+
+      // 1. 雙軌房晚拆解
+      const tierBadge = document.getElementById('msTierBadge');
+      tierBadge.className = `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border shrink-0 ${m.currentTier.badgeCls}`;
+      tierBadge.textContent = m.currentTier.name;
+
+      document.getElementById('msRolloverVal').textContent = m.rolloverNights;
+      document.getElementById('msActualVal').textContent = m.actualQualifyingNights;
+      document.getElementById('msStatusBonusVal').textContent = m.statusBonusNights;
+      document.getElementById('msStatusTotal').textContent = m.totalStatusNights;
+      document.getElementById('msRolloverSourceNote').textContent = `結轉來源：${m.rolloverNote}`;
+
+      let statusGapText;
+      if (m.toDiamond === 0) {
+        statusGapText = '已達成鑽石精英會籍！';
+      } else if (m.toPlatinum === 0) {
+        statusGapText = `已達白金 ｜ 距鑽石還差 ${m.toDiamond} 晚`;
+      } else {
+        statusGapText = `距白金還差 ${m.toPlatinum} 晚 ｜ 距鑽石還差 ${m.toDiamond} 晚`;
+      }
+      document.getElementById('msStatusGapText').textContent = statusGapText;
+
+      const statusCap = Math.max(70, m.totalStatusNights);
+      const rollPct = Math.min(100, (m.rolloverNights / statusCap) * 100);
+      const actPct = Math.min(100 - rollPct, (m.actualQualifyingNights / statusCap) * 100);
+      const bonPct = Math.min(100 - rollPct - actPct, (m.statusBonusNights / statusCap) * 100);
+      document.getElementById('msBarRollover').style.width = `${rollPct.toFixed(2)}%`;
+      document.getElementById('msBarActualStatus').style.width = `${actPct.toFixed(2)}%`;
+      document.getElementById('msBarBonusStatus').style.width = `${bonPct.toFixed(2)}%`;
+
+      // 進階獎勵卡
+      document.getElementById('msActualVal2').textContent = m.actualQualifyingNights;
+      document.getElementById('msMilestoneBonusVal').textContent = m.milestoneBonusNights;
+      document.getElementById('msUnlockedCount').textContent = m.unlockedMilestonesCount;
+      document.getElementById('msMilestoneTotal').textContent = m.totalMilestoneNights;
+
+      const loungeBadge = document.getElementById('msLoungeBadge');
+      const loungeGapEl = document.getElementById('msLoungeGapText');
+      if (m.toLounge === 0) {
+        loungeBadge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0';
+        loungeBadge.textContent = '已解鎖年度行政酒廊';
+        loungeGapEl.textContent = '已達成 40 晚年度行政酒廊資格！';
+        loungeGapEl.className = 'font-semibold text-emerald-600';
+      } else {
+        loungeBadge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 shrink-0';
+        loungeBadge.textContent = '行政酒廊衝刺中';
+        loungeGapEl.textContent = `距離 40 晚年度行政酒廊還差 ${m.toLounge} 晚`;
+        loungeGapEl.className = 'font-semibold text-amber-700';
+      }
+
+      const loungeActPct = Math.min(100, (m.actualQualifyingNights / 40) * 100);
+      const loungeBonPct = Math.min(100 - loungeActPct, (m.milestoneBonusNights / 40) * 100);
+      document.getElementById('msBarActualMilestone').style.width = `${loungeActPct.toFixed(2)}%`;
+      document.getElementById('msBarBonusMilestone').style.width = `${loungeBonPct.toFixed(2)}%`;
+
+      document.getElementById('msNextMilestoneNote').textContent = m.nextMilestone
+        ? `下一里程碑：${m.nextMilestone.nights} 晚（尚差 ${m.nextMilestone.nights - m.totalMilestoneNights} 晚）`
+        : '已解鎖全數 100 晚進階獎勵里程碑';
+
+      // 2. 【IHG活動】日曆連線狀態與活動表
+      const calBadge = document.getElementById('actCalStatusBadge');
+      if (m.activityCalendarFound) {
+        calBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+        calBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>已連結【IHG活動】日曆';
+      } else {
+        calBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200';
+        calBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>尚未偵測到【IHG活動】日曆（請先建立並更新 GAS）';
+      }
+
+      const promoBody = document.getElementById('promoTableBody');
+      promoBody.innerHTML = '';
+
+      if (m.promos.length === 0) {
+        promoBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="px-5 py-10 text-center text-slate-400">
+              ${m.selectedYear} 年尚未設定定向加倍活動行程
+            </td>
+          </tr>
+        `;
+      } else {
+        m.promos.forEach(p => {
+          const isUnlimited = p.cap === Infinity;
+          const pct = isUnlimited ? (p.earnedNights > 0 ? 100 : 0) : Math.min(100, (p.earnedNights / p.cap) * 100);
+          const scopeBadge = p.countsForMilestones
+            ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-200">會籍 ＋ 進階</span>'
+            : '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">僅計會籍</span>';
+
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-sky-50/40 transition-colors';
+          tr.innerHTML = `
+            <td class="px-5 py-3.5 font-semibold text-slate-800">${IHGApp.escapeHtml(p.title)}</td>
+            <td class="px-5 py-3.5 font-mono-num text-xs text-slate-600">${IHGApp.formatDateSlash(p.startDate)} – ${IHGApp.formatDateSlash(p.displayEndDate)}</td>
+            <td class="px-5 py-3.5 text-center">${scopeBadge}</td>
+            <td class="px-5 py-3.5 text-right font-mono-num text-slate-600">${isUnlimited ? '不限' : `${p.cap} 晚`}</td>
+            <td class="px-5 py-3.5 text-right font-mono-num font-bold text-teal-600">+${p.earnedNights} 晚</td>
+            <td class="px-5 py-3.5 text-right font-mono-num font-medium ${p.remainingCap === 0 ? 'text-slate-400' : 'text-sky-700'}">${isUnlimited ? '不限' : `${p.remainingCap} 晚`}</td>
+            <td class="px-5 py-3.5">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70">
+                  <div class="h-full bg-gradient-to-r from-teal-500 to-cyan-500 transition-all duration-500" style="width: ${pct.toFixed(1)}%"></div>
+                </div>
+                <span class="font-mono-num text-[11px] text-slate-500 w-10 text-right">${isUnlimited ? '—' : `${Math.round(pct)}%`}</span>
+              </div>
+            </td>
+          `;
+          promoBody.appendChild(tr);
+        });
+      }
+
+      // 3. 20～100 晚進階獎勵里程碑卡片
+      const grid = document.getElementById('milestoneGrid');
+      grid.innerHTML = '';
+
+      IHGApp.MILESTONE_REWARDS.forEach(item => {
+        const unlocked = m.totalMilestoneNights >= item.nights;
+        const remain = Math.max(0, item.nights - m.totalMilestoneNights);
+        const pct = Math.min(100, (m.totalMilestoneNights / item.nights) * 100);
+
+        let cardBorderCls = 'border-slate-200/80';
+        let topBarCls = 'from-slate-300 to-slate-200';
+        if (unlocked) {
+          cardBorderCls = 'border-emerald-300/90 ring-1 ring-emerald-200/60';
+          topBarCls = 'from-emerald-500 to-teal-400';
+        } else if (item.isCoreGoal) {
+          cardBorderCls = 'border-amber-300/90 ring-1 ring-amber-200/70';
+          topBarCls = 'from-amber-500 to-cyan-500';
+        }
+
+        const statusChip = unlocked
+          ? '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">已解鎖</span>'
+          : `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold font-mono-num ${item.isCoreGoal ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'} border">尚差 ${remain} 晚</span>`;
+
+        const coreTag = item.isCoreGoal
+          ? '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">核心目標</span>'
+          : '';
+
+        const optionsHtml = item.options.map(opt => {
+          const isLoungeOpt = opt.includes('年度行政酒廊');
+          return `
+            <li class="flex items-start gap-2 text-xs ${isLoungeOpt ? 'text-amber-800 font-semibold' : 'text-slate-600'}">
+              <span class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isLoungeOpt ? 'bg-amber-500' : (unlocked ? 'bg-emerald-500' : 'bg-sky-400')}"></span>
+              <span>${IHGApp.escapeHtml(opt)}</span>
+            </li>
+          `;
+        }).join('');
+
+        const card = document.createElement('div');
+        card.className = `tech-card rounded-2xl p-4 relative overflow-hidden flex flex-col justify-between gap-3 ${cardBorderCls}`;
+        card.innerHTML = `
+          <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${topBarCls}"></div>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between gap-2 pt-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono-num text-xl font-bold ${unlocked ? 'text-emerald-700' : (item.isCoreGoal ? 'text-amber-700' : 'text-slate-800')}">${item.nights} 晚</span>
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200/70">任選 ${item.picks} 項</span>
+                ${coreTag}
+              </div>
+              ${statusChip}
+            </div>
+
+            <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <div class="h-full bg-gradient-to-r ${topBarCls} transition-all duration-500" style="width: ${pct.toFixed(1)}%"></div>
+            </div>
+
+            <ul class="space-y-1.5 pt-0.5">
+              ${optionsHtml}
+            </ul>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    IHGApp.init({
+      activePage: 'milestones',
+      onRender({ membership }) {
+        renderMilestonesPage(membership);
+      }
+    });
+  </script>
+</body>
+</html>
