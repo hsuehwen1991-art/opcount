@@ -111,15 +111,9 @@
 
         <div>
           <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">同步資料範圍</span>
-          <div class="flex flex-wrap items-center gap-3 text-sm">
-            <span id="syncRangeDisplay" class="font-mono-num inline-flex items-center px-3 py-1 rounded-xl bg-sky-50/80 text-sky-700 border border-sky-200/70 text-xs font-semibold">
-              2025 – 2027 年
-            </span>
-            <label class="inline-flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
-              <input type="checkbox" id="strictColorCheck" checked onchange="fetchCalendarData()" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
-              僅番茄紅行程
-            </label>
-          </div>
+          <span id="syncRangeDisplay" class="font-mono-num inline-flex items-center px-3 py-1 rounded-xl bg-sky-50/80 text-sky-700 border border-sky-200/70 text-xs font-semibold">
+            2025 – 2027 年
+          </span>
         </div>
       </div>
 
@@ -133,7 +127,7 @@
 
     <!-- KPI 摘要卡片（順序：最愛飯店、定級房晚、現金支出總計、積分兌換總計） -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <!-- 1. 最愛飯店 -->
+      <!-- 1. 最愛飯店（含品牌 Logo） -->
       <div class="tech-card tech-card-hover rounded-2xl p-5 relative overflow-hidden">
         <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 to-teal-400"></div>
         <div class="flex items-center justify-between">
@@ -142,7 +136,8 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
           </span>
         </div>
-        <div class="mt-3 min-h-[36px] flex items-center">
+        <div class="mt-2.5 flex items-center gap-3 min-h-[44px]">
+          <div id="kpiFavHotelLogos" class="flex items-center gap-1.5 shrink-0"></div>
           <span id="kpiFavHotel" class="text-lg sm:text-xl font-bold text-slate-900 leading-snug truncate" title="尚無資料">尚無資料</span>
         </div>
         <div id="kpiFavHotelSub" class="mt-1.5 text-xs text-slate-500">住宿比 0.00%（定級 0 晚）</div>
@@ -333,6 +328,7 @@
     // 1. 全域設定與常數
     // =========================================================================
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyDWevi8zV-rEJSx4qjcFQ4jLFeQK9Slw5twdel8UcA_73U34DcIrch_NyGOL08GE-a/exec';
+    const LOGO_BASE_PATH = './logos/'; // GitHub 圖片資料夾路徑（若放根目錄請改為 './'）
     const HOTEL_ANNUAL_CAP = 14;
     const POINTS_TO_TWD = 0.16;
 
@@ -341,6 +337,19 @@
       'IHG One Pass 彈性價': { limit: Infinity, order: 2 },
       'IHG One Pass 友人價': { limit: 50, order: 3 }
     };
+
+    // 飯店品牌關鍵字比對規則（順序刻意將「智選假日」「皇冠」排在「假日酒店」之前，避免誤判）
+    const HOTEL_BRAND_RULES = [
+      { keyword: '智選假日', brand: 'Holiday Inn Express', file: 'HolidayInnExpress.jpg' },
+      { keyword: '皇冠', brand: 'Crowne Plaza', file: 'Crowne.jpg' },
+      { keyword: '洲至奢選', brand: 'Vignette Collection', file: 'Vignette.jpg' },
+      { keyword: '洲際', brand: 'InterContinental', file: 'InterContinental.jpg' },
+      { keyword: '金普頓', brand: 'Kimpton', file: 'Kimpton.jpg' },
+      { keyword: '英迪格', brand: 'Hotel Indigo', file: 'Indigo.jpg' },
+      { keyword: 'voco', brand: 'voco', file: 'voco.jpg' },
+      { keyword: '華邑', brand: 'HUALUXE', file: 'HUALUXE.jpg' },
+      { keyword: '假日酒店', brand: 'Holiday Inn', file: 'HolidayInn.jpg' }
+    ];
 
     // 5 種主要方案專屬色標；其他方案一律灰色
     const PLAN_STYLES = {
@@ -377,8 +386,66 @@
       chartColor: '#94a3b8'
     };
 
+    // 價格行驗證規則（確認說明欄第 2 / 4 行確實為金額或積分格式，用以替代顏色過濾）
+    const CURRENCY_TOKEN = '(?:NT\\$|US\\$|HK\\$|SG\\$|TWD|USD|THB|VND|JPY|EUR|CNY|RMB|HKD|SGD|KRW|MYR|台幣|美金|美元|泰銖|越南盾|日圓|日幣|歐元|人民幣|港幣|新幣|韓元|馬幣|元|積分|點|pts?|points?|[\\$€¥฿₫₩])';
+    const PRICE_LINE_REGEX = new RegExp(`^${CURRENCY_TOKEN}?\\s*[\\d,]+(?:\\.\\d+)?\\s*${CURRENCY_TOKEN}?$`, 'i');
+
     function getPlanStyle(basePlan) {
       return PLAN_STYLES[basePlan] || OTHER_PLAN_STYLE;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function detectHotelBrand(hotelName) {
+      const normalized = (hotelName || '').toLowerCase();
+      for (const rule of HOTEL_BRAND_RULES) {
+        if (normalized.includes(rule.keyword.toLowerCase())) {
+          return {
+            brand: rule.brand,
+            file: rule.file,
+            logoUrl: `${LOGO_BASE_PATH}${rule.file}`
+          };
+        }
+      }
+      return null;
+    }
+
+    function buildBrandLogoHtml(hotelName, size = 'sm') {
+      const brandInfo = detectHotelBrand(hotelName);
+      const boxCls = size === 'lg'
+        ? 'w-11 h-11 rounded-xl border border-slate-200/90 bg-white shadow-xs'
+        : 'w-8 h-8 rounded-lg border border-slate-200/80 bg-white shadow-2xs';
+      const fallbackTextCls = size === 'lg' ? 'text-[11px]' : 'text-[9px]';
+
+      if (!brandInfo) {
+        return `
+          <span class="${boxCls} inline-flex items-center justify-center shrink-0 bg-slate-50 text-slate-400 font-bold ${fallbackTextCls} tracking-tighter select-none" title="未分類品牌">
+            IHG
+          </span>
+        `;
+      }
+
+      return `
+        <span class="${boxCls} inline-flex items-center justify-center shrink-0 overflow-hidden p-0.5" title="${escapeHtml(brandInfo.brand)}">
+          <img
+            src="${escapeHtml(brandInfo.logoUrl)}"
+            alt="${escapeHtml(brandInfo.brand)}"
+            loading="lazy"
+            class="w-full h-full object-contain"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+          />
+          <span style="display:none" class="w-full h-full items-center justify-center bg-sky-50 text-sky-600 font-bold ${fallbackTextCls} tracking-tighter select-none">
+            IHG
+          </span>
+        </span>
+      `;
     }
 
     // 預設匯率（1 外幣 = X 台幣），啟動時自動向公開 API 取得最新即時匯率
@@ -417,7 +484,6 @@
     function initYearSelect(defaultYear) {
       const yearSelect = document.getElementById('yearSelect');
       yearSelect.innerHTML = '';
-      // 提供「前 1 年至未來 5 年」可直接切換（例如 2026 年時可選 2025～2031 年）
       const minOptionYear = defaultYear - 1;
       const maxOptionYear = defaultYear + 5;
       for (let yr = minOptionYear; yr <= maxOptionYear; yr++) {
@@ -465,7 +531,7 @@
     }
 
     // =========================================================================
-    // 3. 透過 JSONP 呼叫內建 GAS API（固定抓檢視年份的前後 1 年）
+    // 3. 透過 JSONP 呼叫內建 GAS API（不過濾顏色，傳送 strictColor=false）
     // =========================================================================
     function jsonpRequest(url, timeoutMs = 20000) {
       return new Promise((resolve, reject) => {
@@ -522,7 +588,6 @@
       const selectedYear = getSelectedYear();
       const startYear = selectedYear - 1;
       const endYear = selectedYear + 1;
-      const strictColor = document.getElementById('strictColorCheck').checked;
 
       updateSyncRangeDisplay(selectedYear);
 
@@ -536,11 +601,10 @@
         const query = new URLSearchParams({
           startYear: String(startYear),
           endYear: String(endYear),
-          strictColor: String(strictColor)
+          strictColor: 'false'
         });
         const data = await jsonpRequest(`${GAS_API_URL}?${query.toString()}`);
 
-        // 若使用者已快速切換至其他年份，忽略過期回應
         if (reqId !== latestRequestId) return;
 
         if (!data || data.status !== 'success') {
@@ -573,11 +637,11 @@
       };
       const [boxCls, dotCls] = styles[type] || styles.loading;
       badge.className = `inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium font-mono-num border ${boxCls}`;
-      badge.innerHTML = `<span class="w-2 h-2 rounded-full ${dotCls}"></span>${text}`;
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full ${dotCls}"></span>${escapeHtml(text)}`;
     }
 
     // =========================================================================
-    // 4. 資料解析與核心計算引擎
+    // 4. 資料解析與核心計算引擎（不依賴顏色，改依全天＋標準化說明欄格式）
     // =========================================================================
     function parseLocalDate(dateStr) {
       const [y, m, d] = dateStr.split('-').map(Number);
@@ -603,6 +667,12 @@
         .filter(line => line.length > 0);
     }
 
+    function isValidPriceLine(line) {
+      const str = (line || '').trim();
+      if (!str) return false;
+      return PRICE_LINE_REGEX.test(str);
+    }
+
     function parsePriceString(rawPrice) {
       const str = (rawPrice || '').trim();
       const ptsMatch = str.match(/([\d,]+)\s*(?:積分|點|pts?|points?)/i);
@@ -621,7 +691,7 @@
       const amount = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 0;
 
       let rate = 1;
-      if (/US\$|USD|美金|\$/i.test(str) && !/NT\$|TWD|HK\$|SG\$/i.test(str)) {
+      if (/US\$|USD|美金|美元|\$/i.test(str) && !/NT\$|TWD|HK\$|SG\$/i.test(str)) {
         rate = exchangeRates.USD;
       } else if (/THB|฿|泰銖/i.test(str)) {
         rate = exchangeRates.THB;
@@ -668,22 +738,21 @@
     }
 
     function processEvents(events) {
-      const strictColor = document.getElementById('strictColorCheck').checked;
       const rawBookings = [];
 
       events.forEach(ev => {
         if (ev.status === 'cancelled') return;
+        // 規則 1：必須為全天行程
         if (!ev.start || !ev.start.date || !ev.end || !ev.end.date) return;
 
-        const checkInYear = parseInt(ev.start.date.slice(0, 4), 10);
-        if (strictColor && ev.colorId && String(ev.colorId) !== '11') return;
-
+        // 規則 2：說明欄必須符合標準化兩行格式（第 1 行方案＋第 2 行有效金額／積分）
         const lines = stripHtmlToLines(ev.description);
-        if (lines.length < 2) return;
+        if (lines.length < 2 || !lines[0] || !isValidPriceLine(lines[1])) return;
 
         const hotelName = (ev.summary || '未命名飯店').trim();
         const checkInStr = ev.start.date;
         const checkOutStr = ev.end.date;
+        const checkInYear = parseInt(checkInStr.slice(0, 4), 10);
         const dIn = parseLocalDate(checkInStr);
         const dOut = parseLocalDate(checkOutStr);
         const nights = Math.max(0, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
@@ -700,8 +769,8 @@
           priceInfo: parsePriceString(lines[1])
         });
 
-        // 第 2 間房（若有第 3、4 行）
-        if (lines.length >= 4) {
+        // 第 2 間房（第 3、4 行同樣符合標準化方案＋金額格式才拆列）
+        if (lines.length >= 4 && lines[2] && isValidPriceLine(lines[3])) {
           rawBookings.push({
             hotelName,
             checkIn: checkInStr,
@@ -822,12 +891,14 @@
         }
       });
 
-      // 計算最愛飯店（住宿比最高，依定級房晚佔比）
+      // 計算最愛飯店（住宿比最高，依定級房晚佔比）並渲染對應品牌 Logo
+      const favLogosEl = document.getElementById('kpiFavHotelLogos');
       const favEl = document.getElementById('kpiFavHotel');
       const favSubEl = document.getElementById('kpiFavHotelSub');
       const entries = Object.entries(hotelQualMap).filter(([, n]) => n > 0);
 
       if (entries.length === 0 || qualTotal === 0) {
+        favLogosEl.innerHTML = '';
         favEl.textContent = '尚無資料';
         favEl.title = '尚無資料';
         favEl.className = 'text-xl sm:text-2xl font-bold text-slate-300 leading-snug truncate';
@@ -837,6 +908,20 @@
         const topHotels = entries.filter(([, n]) => n === maxQual).map(([name]) => name);
         const topRatio = ((maxQual / qualTotal) * 100).toFixed(2);
         const displayName = topHotels.join('、');
+
+        // 針對最高飯店去重品牌後渲染 Logo（最多顯示 2 個避免擠壓文字）
+        const seenBrandKeys = new Set();
+        const logoHtmlList = [];
+        for (const hName of topHotels) {
+          const bInfo = detectHotelBrand(hName);
+          const key = bInfo ? bInfo.file : '__UNKNOWN__';
+          if (!seenBrandKeys.has(key)) {
+            seenBrandKeys.add(key);
+            logoHtmlList.push(buildBrandLogoHtml(hName, topHotels.length > 1 ? 'sm' : 'lg'));
+          }
+          if (logoHtmlList.length >= 2) break;
+        }
+        favLogosEl.innerHTML = logoHtmlList.join('');
 
         favEl.textContent = displayName;
         favEl.title = displayName;
@@ -889,7 +974,7 @@
           <td class="px-5 py-3.5 font-semibold text-slate-800">
             <span class="inline-flex items-center gap-2">
               <span class="w-2 h-2 rounded-full ${style.dot}"></span>
-              ${planName}
+              ${escapeHtml(planName)}
             </span>
           </td>
           <td class="px-5 py-3.5 text-right font-mono-num font-medium text-slate-700">${prevUsed} 晚</td>
@@ -974,14 +1059,19 @@
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-sky-50/40 transition-colors';
         tr.innerHTML = `
-          <td class="px-4 py-3.5 font-semibold text-slate-800">${h.hotelName}</td>
-          <td class="px-4 py-3.5 text-right font-mono-num">${formatNightCell(h.youxiang)}</td>
-          <td class="px-4 py-3.5 text-right font-mono-num">${formatNightCell(h.tanxing)}</td>
-          <td class="px-4 py-3.5 text-right font-mono-num">${formatNightCell(h.youren)}</td>
-          <td class="px-4 py-3.5 text-right font-mono-num">${limitHtml}</td>
-          <td class="px-4 py-3.5 text-right font-mono-num">${formatNightCell(h.other)}</td>
-          <td class="px-4 py-3.5 text-right font-mono-num font-bold text-sky-700">${h.qualifyingTotal} 晚</td>
-          <td class="px-4 py-3.5 text-right font-mono-num font-medium text-slate-600">${ratio}%</td>
+          <td class="px-4 py-3 font-semibold text-slate-800">
+            <div class="flex items-center gap-2.5">
+              ${buildBrandLogoHtml(h.hotelName, 'sm')}
+              <span>${escapeHtml(h.hotelName)}</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.youxiang)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.tanxing)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.youren)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${limitHtml}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.other)}</td>
+          <td class="px-4 py-3 text-right font-mono-num font-bold text-sky-700">${h.qualifyingTotal} 晚</td>
+          <td class="px-4 py-3 text-right font-mono-num font-medium text-slate-600">${ratio}%</td>
         `;
         tbody.appendChild(tr);
       });
@@ -1022,19 +1112,19 @@
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-sky-50/40 transition-colors';
         tr.innerHTML = `
-          <td class="px-4 py-3 font-semibold text-slate-800">${b.hotelName}</td>
+          <td class="px-4 py-3 font-semibold text-slate-800">${escapeHtml(b.hotelName)}</td>
           <td class="px-4 py-3 text-slate-600 font-mono-num text-xs">${formatDateSlash(b.checkIn)}</td>
           <td class="px-4 py-3 text-slate-600 font-mono-num text-xs">${formatDateSlash(b.checkOut)}</td>
           <td class="px-4 py-3 text-center font-mono-num font-bold ${b.qualifyingNights > 0 ? 'text-sky-700' : 'text-slate-300'}">${b.qualifyingNights}</td>
           <td class="px-4 py-3">
             <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${style.badge}">
               <span class="w-1.5 h-1.5 rounded-full ${style.dot}"></span>
-              ${b.planInfo.rawPlan}
+              ${escapeHtml(b.planInfo.rawPlan)}
             </span>
           </td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">${b.employeeQuotaDisplay}</td>
-          <td class="px-4 py-3 text-xs font-medium ${b.hotelLimitExceeded ? 'text-amber-700 font-bold' : 'text-slate-700'}">${b.hotelLimitDisplay}</td>
-          <td class="px-4 py-3 text-right font-mono-num font-semibold text-slate-800">${b.priceInfo.display}</td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">${escapeHtml(b.employeeQuotaDisplay)}</td>
+          <td class="px-4 py-3 text-xs font-medium ${b.hotelLimitExceeded ? 'text-amber-700 font-bold' : 'text-slate-700'}">${escapeHtml(b.hotelLimitDisplay)}</td>
+          <td class="px-4 py-3 text-right font-mono-num font-semibold text-slate-800">${escapeHtml(b.priceInfo.display)}</td>
         `;
         tbody.appendChild(tr);
       });
