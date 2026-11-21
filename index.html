@@ -1140,7 +1140,12 @@
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-sky-50/40 transition-colors';
         tr.innerHTML = `
-          <td class="px-4 py-3 font-semibold text-slate-800">${escapeHtml(b.hotelName)}</td>
+          <td class="px-4 py-3 font-semibold text-slate-800">
+            <div class="flex items-center gap-2.5">
+              ${buildBrandLogoHtml(b.hotelName, 'sm')}
+              <span>${escapeHtml(b.hotelName)}</span>
+            </div>
+          </td>
           <td class="px-4 py-3 text-slate-600 font-mono-num text-xs">${formatDateSlash(b.checkIn)}</td>
           <td class="px-4 py-3 text-slate-600 font-mono-num text-xs">${formatDateSlash(b.checkOut)}</td>
           <td class="px-4 py-3 text-center font-mono-num font-bold ${b.qualifyingNights > 0 ? 'text-sky-700' : 'text-slate-300'}">${b.qualifyingNights}</td>
