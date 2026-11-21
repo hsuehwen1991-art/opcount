@@ -327,3 +327,962 @@
     // =========================================================================
     // 1. 全域設定與常數
     // =========================================================================
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyDWevi8zV-rEJSx4qjcFQ4jLFeQK9Slw5twdel8UcA_73U34DcIrch_NyGOL08GE-a/exec';
+    const LOGO_BASE_PATH = './logos/'; // GitHub 圖片資料夾路徑（若放根目錄請改為 './'）
+    const HOTEL_ANNUAL_CAP = 14;
+    const POINTS_TO_TWD = 0.16;
+
+    const EMPLOYEE_PLANS = {
+      'IHG One Pass 優享價': { limit: 30, order: 1 },
+      'IHG One Pass 彈性價': { limit: Infinity, order: 2 },
+      'IHG One Pass 友人價': { limit: 50, order: 3 }
+    };
+
+    // 飯店品牌關鍵字比對規則（將「智選假日」「皇冠」排在「假日酒店」之前，避免誤判）
+    const HOTEL_BRAND_RULES = [
+      { keyword: '智選假日', brand: 'Holiday Inn Express', file: 'HolidayInnExpress.svg' },
+      { keyword: '皇冠', brand: 'Crowne Plaza', file: 'Crowne.svg' },
+      { keyword: '洲至奢選', brand: 'Vignette Collection', file: 'Vignette.svg' },
+      { keyword: '洲際', brand: 'InterContinental', file: 'InterContinental.svg' },
+      { keyword: '金普頓', brand: 'Kimpton', file: 'Kimpton.svg' },
+      { keyword: '英迪格', brand: 'Hotel Indigo', file: 'Indigo.svg' },
+      { keyword: 'voco', brand: 'voco', file: 'voco.svg' },
+      { keyword: '華邑', brand: 'HUALUXE', file: 'HUALUXE.svg' },
+      { keyword: '假日酒店', brand: 'Holiday Inn', file: 'HolidayInn.svg' }
+    ];
+
+    // 5 種主要方案專屬色標；其他方案一律灰色
+    const PLAN_STYLES = {
+      'IHG One Pass 優享價': {
+        badge: 'bg-sky-50 text-sky-700 border-sky-200',
+        dot: 'bg-sky-500',
+        chartColor: '#0284c7'
+      },
+      'IHG One Pass 彈性價': {
+        badge: 'bg-teal-50 text-teal-700 border-teal-200',
+        dot: 'bg-teal-500',
+        chartColor: '#0d9488'
+      },
+      'IHG One Pass 友人價': {
+        badge: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        dot: 'bg-indigo-500',
+        chartColor: '#4f46e5'
+      },
+      '大使免費週末住宿': {
+        badge: 'bg-amber-50 text-amber-700 border-amber-200',
+        dot: 'bg-amber-500',
+        chartColor: '#d97706'
+      },
+      '獎勵住宿': {
+        badge: 'bg-purple-50 text-purple-700 border-purple-200',
+        dot: 'bg-purple-500',
+        chartColor: '#9333ea'
+      }
+    };
+
+    const OTHER_PLAN_STYLE = {
+      badge: 'bg-slate-100 text-slate-600 border-slate-200',
+      dot: 'bg-slate-400',
+      chartColor: '#94a3b8'
+    };
+
+    // 價格行驗證規則（確認說明欄第 2 / 4 行確實為金額或積分格式，用以替代顏色過濾）
+    const CURRENCY_TOKEN = '(?:NT\\$|US\\$|HK\\$|SG\\$|TWD|USD|THB|VND|JPY|EUR|CNY|RMB|HKD|SGD|KRW|MYR|台幣|美金|美元|泰銖|越南盾|日圓|日幣|歐元|人民幣|港幣|新幣|韓元|馬幣|元|積分|點|pts?|points?|[\\$€¥฿₫₩])';
+    const PRICE_LINE_REGEX = new RegExp(`^${CURRENCY_TOKEN}?\\s*[\\d,]+(?:\\.\\d+)?\\s*${CURRENCY_TOKEN}?$`, 'i');
+
+    function getPlanStyle(basePlan) {
+      return PLAN_STYLES[basePlan] || OTHER_PLAN_STYLE;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function detectHotelBrand(hotelName) {
+      const normalized = (hotelName || '').toLowerCase();
+      for (const rule of HOTEL_BRAND_RULES) {
+        if (normalized.includes(rule.keyword.toLowerCase())) {
+          return {
+            brand: rule.brand,
+            file: rule.file,
+            logoUrl: `${LOGO_BASE_PATH}${rule.file}`
+          };
+        }
+      }
+      return null;
+    }
+
+    function buildBrandLogoHtml(hotelName, size = 'sm') {
+      const brandInfo = detectHotelBrand(hotelName);
+      const boxCls = size === 'lg'
+        ? 'w-11 h-11 rounded-xl border border-slate-200/80 bg-white shadow-sm'
+        : 'w-8 h-8 rounded-lg border border-slate-200/80 bg-white shadow-sm';
+      const fallbackTextCls = size === 'lg' ? 'text-[11px]' : 'text-[9px]';
+
+      if (!brandInfo) {
+        return `
+          <span class="${boxCls} inline-flex items-center justify-center shrink-0 bg-slate-50 text-slate-400 font-bold ${fallbackTextCls} tracking-tighter select-none" title="未分類品牌">
+            IHG
+          </span>
+        `;
+      }
+
+      return `
+        <span class="${boxCls} inline-flex items-center justify-center shrink-0 overflow-hidden" title="${escapeHtml(brandInfo.brand)}">
+          <img
+            src="${escapeHtml(brandInfo.logoUrl)}"
+            alt="${escapeHtml(brandInfo.brand)}"
+            loading="lazy"
+            class="w-full h-full object-contain"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+          />
+          <span style="display:none" class="w-full h-full items-center justify-center bg-sky-50 text-sky-600 font-bold ${fallbackTextCls} tracking-tighter select-none">
+            IHG
+          </span>
+        </span>
+      `;
+    }
+
+    // 預設匯率（1 外幣 = X 台幣）
+    let exchangeRates = {
+      TWD: 1,
+      USD: 32.0,
+      THB: 0.95,
+      VND: 0.00126,
+      JPY: 0.21,
+      EUR: 34.5,
+      CNY: 4.4,
+      HKD: 4.1,
+      SGD: 23.8,
+      KRW: 0.023,
+      MYR: 7.2
+    };
+
+    let allProcessedBookings = [];
+    let currentYearProcessed = [];
+    let monthlyChartInstance = null;
+    let planChartInstance = null;
+    let latestRequestId = 0;
+
+    // 全域錯誤監聽：避免任何例外導致畫面永久停在「初始化中...」
+    window.addEventListener('error', (e) => {
+      const badge = document.getElementById('statusBadge');
+      if (badge && badge.textContent.includes('初始化中')) {
+        setStatus('error', `程式錯誤：${e.message || '請開啟 F12 Console 檢視'}`);
+      }
+    });
+
+    // =========================================================================
+    // 2. 初始化（含匯率逾時保護，絕不卡住）
+    // =========================================================================
+    async function initApp() {
+      try {
+        const currentYear = new Date().getFullYear();
+        initYearSelect(currentYear);
+        updateSyncRangeDisplay(currentYear);
+
+        setStatus('loading', '讀取即時匯率...');
+        await fetchLiveExchangeRates(3500);
+        await fetchCalendarData();
+      } catch (err) {
+        console.error('初始化失敗:', err);
+        setStatus('error', `初始化錯誤：${err.message || err}`);
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+
+    function initYearSelect(defaultYear) {
+      const yearSelect = document.getElementById('yearSelect');
+      yearSelect.innerHTML = '';
+      const minOptionYear = defaultYear - 1;
+      const maxOptionYear = defaultYear + 5;
+      for (let yr = minOptionYear; yr <= maxOptionYear; yr++) {
+        const opt = document.createElement('option');
+        opt.value = yr;
+        opt.textContent = `${yr} 年`;
+        yearSelect.appendChild(opt);
+      }
+      yearSelect.value = String(defaultYear);
+    }
+
+    function getSelectedYear() {
+      return parseInt(document.getElementById('yearSelect').value, 10) || new Date().getFullYear();
+    }
+
+    function updateSyncRangeDisplay(year) {
+      document.getElementById('syncRangeDisplay').textContent = `${year - 1} – ${year + 1} 年`;
+    }
+
+    function onYearChange() {
+      const selectedYear = getSelectedYear();
+      updateSyncRangeDisplay(selectedYear);
+      fetchCalendarData();
+    }
+
+    async function fetchLiveExchangeRates(timeoutMs = 3500) {
+      let timerId = null;
+      try {
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        if (controller) {
+          timerId = setTimeout(() => controller.abort(), timeoutMs);
+        }
+        const fetchPromise = fetch('https://open.er-api.com/v6/latest/TWD', controller ? { signal: controller.signal } : {});
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('匯率請求逾時')), timeoutMs + 200)
+        );
+        const res = await Promise.race([fetchPromise, timeoutPromise]);
+        if (timerId) clearTimeout(timerId);
+
+        const data = await res.json();
+        if (data && data.result === 'success' && data.rates) {
+          ['USD', 'THB', 'VND', 'JPY', 'EUR', 'CNY', 'HKD', 'SGD', 'KRW', 'MYR'].forEach(cur => {
+            if (data.rates[cur]) {
+              exchangeRates[cur] = 1 / data.rates[cur];
+            }
+          });
+          document.getElementById('rateInfo').textContent =
+            `1 USD ≈ ${exchangeRates.USD.toFixed(2)} TWD ｜ 1 THB ≈ ${exchangeRates.THB.toFixed(3)} TWD ｜ 1 積分 = 0.16 TWD`;
+          return;
+        }
+      } catch (e) {
+        if (timerId) clearTimeout(timerId);
+        console.warn('即時匯率取得失敗或逾時，改用內建預設匯率', e);
+      }
+      document.getElementById('rateInfo').textContent =
+        `預設匯率：1 USD = ${exchangeRates.USD.toFixed(2)} TWD ｜ 1 THB = ${exchangeRates.THB.toFixed(2)} TWD ｜ 1 積分 = 0.16 TWD`;
+    }
+
+    // =========================================================================
+    // 3. 透過 JSONP 呼叫內建 GAS API（不過濾顏色，傳送 strictColor=false）
+    // =========================================================================
+    function jsonpRequest(url, timeoutMs = 20000) {
+      return new Promise((resolve, reject) => {
+        const cbName = 'ihgGasCb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+        const script = document.createElement('script');
+        let settled = false;
+
+        const cleanup = () => {
+          if (script.parentNode) script.parentNode.removeChild(script);
+          try { delete window[cbName]; } catch (_) { window[cbName] = undefined; }
+        };
+
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('API 連線逾時，請稍後重試'));
+        }, timeoutMs);
+
+        window[cbName] = (data) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          cleanup();
+          resolve(data);
+        };
+
+        script.onerror = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          cleanup();
+          reject(new Error('無法連線至後端 API'));
+        };
+
+        const sep = url.includes('?') ? '&' : '?';
+        script.src = `${url}${sep}callback=${cbName}&_t=${Date.now()}`;
+        document.body.appendChild(script);
+      });
+    }
+
+    function formatSyncTimestamp(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      const hh = String(dateObj.getHours()).padStart(2, '0');
+      const mm = String(dateObj.getMinutes()).padStart(2, '0');
+      const ss = String(dateObj.getSeconds()).padStart(2, '0');
+      return `${y}/${m}/${d} ${hh}:${mm}:${ss}`;
+    }
+
+    async function fetchCalendarData() {
+      const reqId = ++latestRequestId;
+      const selectedYear = getSelectedYear();
+      const startYear = selectedYear - 1;
+      const endYear = selectedYear + 1;
+
+      updateSyncRangeDisplay(selectedYear);
+
+      const refreshBtn = document.getElementById('refreshBtn');
+      const refreshIcon = document.getElementById('refreshIcon');
+      refreshBtn.disabled = true;
+      refreshIcon.classList.add('animate-spin');
+      setStatus('loading', '正在同步最新資料...');
+
+      try {
+        const query = new URLSearchParams({
+          startYear: String(startYear),
+          endYear: String(endYear),
+          strictColor: 'false'
+        });
+        const data = await jsonpRequest(`${GAS_API_URL}?${query.toString()}`);
+
+        if (reqId !== latestRequestId) return;
+
+        if (!data || data.status !== 'success') {
+          throw new Error((data && data.message) || '後端回傳資料格式異常');
+        }
+
+        processEvents(data.items || []);
+        setStatus('success', `已同步 ${formatSyncTimestamp(new Date())}`);
+      } catch (err) {
+        if (reqId !== latestRequestId) return;
+        console.error(err);
+        setStatus('error', err.message || '資料同步失敗');
+        allProcessedBookings = [];
+        currentYearProcessed = [];
+        renderDashboard();
+      } finally {
+        if (reqId === latestRequestId) {
+          refreshBtn.disabled = false;
+          refreshIcon.classList.remove('animate-spin');
+        }
+      }
+    }
+
+    function setStatus(type, text) {
+      const badge = document.getElementById('statusBadge');
+      const styles = {
+        loading: ['bg-sky-50 text-sky-700 border-sky-200/80', 'bg-sky-500 animate-pulse'],
+        success: ['bg-emerald-50 text-emerald-700 border-emerald-200/80', 'bg-emerald-500'],
+        error: ['bg-amber-50 text-amber-800 border-amber-200/90', 'bg-amber-500']
+      };
+      const [boxCls, dotCls] = styles[type] || styles.loading;
+      badge.className = `inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium font-mono-num border ${boxCls}`;
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full ${dotCls}"></span>${escapeHtml(text)}`;
+    }
+
+    // =========================================================================
+    // 4. 資料解析與核心計算引擎（不依賴顏色，改依全天＋標準化說明欄格式）
+    // =========================================================================
+    function parseLocalDate(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function formatDateSlash(dateStr) {
+      return dateStr.replace(/-/g, '/');
+    }
+
+    function stripHtmlToLines(desc) {
+      if (!desc) return [];
+      const withNewlines = desc
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<[^>]+>/g, '');
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = withNewlines;
+      return textarea.value
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+    }
+
+    function isValidPriceLine(line) {
+      const str = (line || '').trim();
+      if (!str) return false;
+      return PRICE_LINE_REGEX.test(str);
+    }
+
+    function parsePriceString(rawPrice) {
+      const str = (rawPrice || '').trim();
+      const ptsMatch = str.match(/([\d,]+)\s*(?:積分|點|pts?|points?)/i);
+      if (ptsMatch) {
+        const points = parseInt(ptsMatch[1].replace(/,/g, ''), 10) || 0;
+        const twd = Math.round(points * POINTS_TO_TWD);
+        return {
+          isPoints: true,
+          points,
+          twd,
+          display: `${points.toLocaleString()} 積分（約${twd.toLocaleString()}元）`
+        };
+      }
+
+      const numMatch = str.match(/([\d,]+(?:\.\d+)?)/);
+      const amount = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 0;
+
+      let rate = 1;
+      if (/US\$|USD|美金|美元|\$/i.test(str) && !/NT\$|TWD|HK\$|SG\$/i.test(str)) {
+        rate = exchangeRates.USD;
+      } else if (/THB|฿|泰銖/i.test(str)) {
+        rate = exchangeRates.THB;
+      } else if (/VND|₫|越南盾/i.test(str)) {
+        rate = exchangeRates.VND;
+      } else if (/JPY|¥|日圓|日幣/i.test(str)) {
+        rate = exchangeRates.JPY;
+      } else if (/EUR|€|歐元/i.test(str)) {
+        rate = exchangeRates.EUR;
+      } else if (/CNY|RMB|人民幣/i.test(str)) {
+        rate = exchangeRates.CNY;
+      } else if (/HK\$|HKD|港幣/i.test(str)) {
+        rate = exchangeRates.HKD;
+      } else if (/SG\$|SGD|新幣/i.test(str)) {
+        rate = exchangeRates.SGD;
+      } else if (/KRW|₩|韓元/i.test(str)) {
+        rate = exchangeRates.KRW;
+      } else if (/MYR|馬幣/i.test(str)) {
+        rate = exchangeRates.MYR;
+      }
+
+      const twd = Math.round(amount * rate);
+      return {
+        isPoints: false,
+        points: 0,
+        twd,
+        display: `${twd.toLocaleString()} 元`
+      };
+    }
+
+    function parsePlanInfo(planRaw, fallbackYear) {
+      const cleaned = (planRaw || '').trim();
+      const suffixMatch = cleaned.match(/^(.*?)-(\d{4})$/);
+      const basePlan = suffixMatch ? suffixMatch[1].trim() : cleaned;
+      const quotaYear = suffixMatch ? parseInt(suffixMatch[2], 10) : fallbackYear;
+      const isEmployeePlan = Object.prototype.hasOwnProperty.call(EMPLOYEE_PLANS, basePlan);
+
+      return {
+        rawPlan: cleaned,
+        basePlan,
+        quotaYear,
+        isEmployeePlan
+      };
+    }
+
+    function processEvents(events) {
+      const rawBookings = [];
+
+      events.forEach(ev => {
+        if (ev.status === 'cancelled') return;
+        if (!ev.start || !ev.start.date || !ev.end || !ev.end.date) return;
+
+        const lines = stripHtmlToLines(ev.description);
+        if (lines.length < 2 || !lines[0] || !isValidPriceLine(lines[1])) return;
+
+        const hotelName = (ev.summary || '未命名飯店').trim();
+        const checkInStr = ev.start.date;
+        const checkOutStr = ev.end.date;
+        const checkInYear = parseInt(checkInStr.slice(0, 4), 10);
+        const dIn = parseLocalDate(checkInStr);
+        const dOut = parseLocalDate(checkOutStr);
+        const nights = Math.max(0, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
+
+        // 第 1 間房
+        rawBookings.push({
+          hotelName,
+          checkIn: checkInStr,
+          checkOut: checkOutStr,
+          stayYear: checkInYear,
+          stayMonth: parseInt(checkInStr.slice(5, 7), 10),
+          nights,
+          planInfo: parsePlanInfo(lines[0], checkInYear),
+          priceInfo: parsePriceString(lines[1])
+        });
+
+        // 第 2 間房（第 3、4 行同樣符合標準化方案＋金額格式才拆列）
+        if (lines.length >= 4 && lines[2] && isValidPriceLine(lines[3])) {
+          rawBookings.push({
+            hotelName,
+            checkIn: checkInStr,
+            checkOut: checkOutStr,
+            stayYear: checkInYear,
+            stayMonth: parseInt(checkInStr.slice(5, 7), 10),
+            nights,
+            planInfo: parsePlanInfo(lines[2], checkInYear),
+            priceInfo: parsePriceString(lines[3])
+          });
+        }
+      });
+
+      rawBookings.sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.checkOut.localeCompare(b.checkOut));
+
+      const occupiedDatesByYear = {};
+      const quotaUsedTracker = {};
+      const hotelUsedTracker = {};
+
+      allProcessedBookings = rawBookings.map(item => {
+        const y = item.stayYear;
+        if (!occupiedDatesByYear[y]) occupiedDatesByYear[y] = new Set();
+
+        // 1. 計算定級房晚（同日不重複計算）
+        let qualifyingNights = 0;
+        const startD = parseLocalDate(item.checkIn);
+        for (let i = 0; i < item.nights; i++) {
+          const cur = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + i);
+          const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+          if (!occupiedDatesByYear[y].has(iso)) {
+            occupiedDatesByYear[y].add(iso);
+            qualifyingNights++;
+          }
+        }
+
+        // 2. 計算員工價額度房晚與飯店年度限額
+        let employeeQuotaDisplay = '0晚（不計入）';
+        let hotelLimitDisplay = '不計入';
+        let hotelLimitExceeded = false;
+
+        if (item.planInfo.isEmployeePlan) {
+          const basePlan = item.planInfo.basePlan;
+          const qYear = item.planInfo.quotaYear;
+          const qKey = `${qYear}_${basePlan}`;
+          quotaUsedTracker[qKey] = (quotaUsedTracker[qKey] || 0) + item.nights;
+
+          const cap = EMPLOYEE_PLANS[basePlan].limit;
+          if (cap === Infinity) {
+            employeeQuotaDisplay = `${item.nights}晚（剩餘不限）`;
+          } else {
+            const rem = cap - quotaUsedTracker[qKey];
+            employeeQuotaDisplay = rem >= 0
+              ? `${item.nights}晚（剩餘${rem}晚）`
+              : `${item.nights}晚（超額${Math.abs(rem)}晚）`;
+          }
+
+          const hKey = `${y}_${item.hotelName}`;
+          hotelUsedTracker[hKey] = (hotelUsedTracker[hKey] || 0) + item.nights;
+          const hUsed = hotelUsedTracker[hKey];
+          hotelLimitDisplay = `已用${hUsed}晚`;
+          if (hUsed > HOTEL_ANNUAL_CAP) hotelLimitExceeded = true;
+        }
+
+        return {
+          ...item,
+          qualifyingNights,
+          employeeQuotaDisplay,
+          hotelLimitDisplay,
+          hotelLimitExceeded
+        };
+      });
+
+      renderDashboard();
+    }
+
+    // =========================================================================
+    // 5. 渲染儀表板（KPI、圖表、三張統計表）
+    // =========================================================================
+    function renderDashboard() {
+      const selectedYear = getSelectedYear();
+      document.getElementById('hotelOverviewYear').textContent = selectedYear;
+
+      currentYearProcessed = allProcessedBookings.filter(b => b.stayYear === selectedYear);
+
+      renderKPIs(currentYearProcessed);
+      renderQuotaOverviewTable(selectedYear);
+      renderHotelOverviewTable(currentYearProcessed);
+      renderDetailTable();
+      renderCharts(currentYearProcessed);
+    }
+
+    function renderKPIs(list) {
+      let qualTotal = 0;
+      let empQualNights = 0;
+      let otherQualNights = 0;
+      let cashTwd = 0;
+      let paidNights = 0;
+      let pointsTotal = 0;
+      let pointsTwd = 0;
+      const hotelQualMap = {};
+
+      list.forEach(b => {
+        qualTotal += b.qualifyingNights;
+        if (b.planInfo.isEmployeePlan) {
+          empQualNights += b.qualifyingNights;
+        } else {
+          otherQualNights += b.qualifyingNights;
+        }
+
+        hotelQualMap[b.hotelName] = (hotelQualMap[b.hotelName] || 0) + b.qualifyingNights;
+
+        if (b.priceInfo.isPoints) {
+          pointsTotal += b.priceInfo.points;
+          pointsTwd += b.priceInfo.twd;
+        } else {
+          cashTwd += b.priceInfo.twd;
+          if (b.priceInfo.twd > 0) paidNights += b.nights;
+        }
+      });
+
+      const favLogosEl = document.getElementById('kpiFavHotelLogos');
+      const favEl = document.getElementById('kpiFavHotel');
+      const favSubEl = document.getElementById('kpiFavHotelSub');
+      const entries = Object.entries(hotelQualMap).filter(([, n]) => n > 0);
+
+      if (entries.length === 0 || qualTotal === 0) {
+        favLogosEl.innerHTML = '';
+        favEl.textContent = '尚無資料';
+        favEl.title = '尚無資料';
+        favEl.className = 'text-xl sm:text-2xl font-bold text-slate-300 leading-snug truncate';
+        favSubEl.textContent = '住宿比 0.00%（定級 0 晚）';
+      } else {
+        const maxQual = Math.max(...entries.map(([, n]) => n));
+        const topHotels = entries.filter(([, n]) => n === maxQual).map(([name]) => name);
+        const topRatio = ((maxQual / qualTotal) * 100).toFixed(2);
+        const displayName = topHotels.join('、');
+
+        const seenBrandKeys = new Set();
+        const logoHtmlList = [];
+        for (const hName of topHotels) {
+          const bInfo = detectHotelBrand(hName);
+          const key = bInfo ? bInfo.file : '__UNKNOWN__';
+          if (!seenBrandKeys.has(key)) {
+            seenBrandKeys.add(key);
+            logoHtmlList.push(buildBrandLogoHtml(hName, topHotels.length > 1 ? 'sm' : 'lg'));
+          }
+          if (logoHtmlList.length >= 2) break;
+        }
+        favLogosEl.innerHTML = logoHtmlList.join('');
+
+        favEl.textContent = displayName;
+        favEl.title = displayName;
+        favEl.className = 'text-lg sm:text-xl font-bold text-cyan-700 leading-snug truncate';
+        favSubEl.textContent = topHotels.length > 1
+          ? `並列最高・各佔 ${topRatio}%（定級 ${maxQual} 晚）`
+          : `住宿比 ${topRatio}%（定級 ${maxQual} 晚）`;
+      }
+
+      const avgNight = paidNights > 0 ? Math.round(cashTwd / paidNights) : 0;
+
+      document.getElementById('kpiQualifying').textContent = qualTotal.toLocaleString();
+      document.getElementById('kpiNightsBreakdown').textContent = `員工價 ${empQualNights} 晚 ｜ 其他方案 ${otherQualNights} 晚`;
+      document.getElementById('kpiCashSpend').textContent = cashTwd.toLocaleString();
+      document.getElementById('kpiAvgRate').textContent = `付費房晚平均每晚 NT$ ${avgNight.toLocaleString()}`;
+      document.getElementById('kpiPointsTotal').textContent = pointsTotal.toLocaleString();
+      document.getElementById('kpiPointsValue').textContent = `約折合台幣 NT$ ${pointsTwd.toLocaleString()}（總價值 NT$ ${(cashTwd + pointsTwd).toLocaleString()}）`;
+    }
+
+    function renderQuotaOverviewTable(selectedYear) {
+      const prevYear = selectedYear - 1;
+      document.getElementById('thPrevUsed').textContent = `${prevYear}已使用晚數`;
+      document.getElementById('thPrevRem').textContent = `${prevYear}剩餘可用晚數`;
+      document.getElementById('thCurrUsed').textContent = `${selectedYear}已使用晚數`;
+      document.getElementById('thCurrRem').textContent = `${selectedYear}剩餘可用晚數`;
+
+      const usage = {};
+      allProcessedBookings.forEach(b => {
+        if (!b.planInfo.isEmployeePlan) return;
+        const key = `${b.planInfo.quotaYear}_${b.planInfo.basePlan}`;
+        usage[key] = (usage[key] || 0) + b.nights;
+      });
+
+      const tbody = document.getElementById('quotaOverviewBody');
+      tbody.innerHTML = '';
+
+      Object.entries(EMPLOYEE_PLANS).forEach(([planName, cfg]) => {
+        const prevUsed = usage[`${prevYear}_${planName}`] || 0;
+        const currUsed = usage[`${selectedYear}_${planName}`] || 0;
+        const isUnlimited = cfg.limit === Infinity;
+        const style = getPlanStyle(planName);
+
+        const prevRemText = isUnlimited ? '不限' : `${Math.max(0, cfg.limit - prevUsed)} 晚`;
+        const currRemText = isUnlimited ? '不限' : `${Math.max(0, cfg.limit - currUsed)} 晚`;
+        const capText = isUnlimited ? '不限' : `${cfg.limit} 晚`;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-sky-50/40 transition-colors';
+        tr.innerHTML = `
+          <td class="px-5 py-3.5 font-semibold text-slate-800">
+            <span class="inline-flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full ${style.dot}"></span>
+              ${escapeHtml(planName)}
+            </span>
+          </td>
+          <td class="px-5 py-3.5 text-right font-mono-num font-medium text-slate-700">${prevUsed} 晚</td>
+          <td class="px-5 py-3.5 text-right font-mono-num font-semibold ${isUnlimited ? 'text-slate-400' : 'text-teal-600'}">${prevRemText}</td>
+          <td class="px-5 py-3.5 text-right font-mono-num font-medium text-slate-700">${currUsed} 晚</td>
+          <td class="px-5 py-3.5 text-right font-mono-num font-semibold ${isUnlimited ? 'text-slate-400' : 'text-teal-600'}">${currRemText}</td>
+          <td class="px-5 py-3.5 text-right font-mono-num text-slate-500">${capText}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderHotelOverviewTable(list) {
+      const hotelMap = {};
+      let grandYouxiang = 0;
+      let grandTanxing = 0;
+      let grandYouren = 0;
+      let grandOther = 0;
+      let grandQualifyingTotal = 0;
+
+      list.forEach(b => {
+        if (!hotelMap[b.hotelName]) {
+          hotelMap[b.hotelName] = {
+            hotelName: b.hotelName,
+            youxiang: 0,
+            tanxing: 0,
+            youren: 0,
+            other: 0,
+            qualifyingTotal: 0
+          };
+        }
+        const h = hotelMap[b.hotelName];
+        if (b.planInfo.basePlan === 'IHG One Pass 優享價') {
+          h.youxiang += b.nights;
+          grandYouxiang += b.nights;
+        } else if (b.planInfo.basePlan === 'IHG One Pass 彈性價') {
+          h.tanxing += b.nights;
+          grandTanxing += b.nights;
+        } else if (b.planInfo.basePlan === 'IHG One Pass 友人價') {
+          h.youren += b.nights;
+          grandYouren += b.nights;
+        } else {
+          h.other += b.nights;
+          grandOther += b.nights;
+        }
+
+        h.qualifyingTotal += b.qualifyingNights;
+        grandQualifyingTotal += b.qualifyingNights;
+      });
+
+      const hotels = Object.values(hotelMap).map(h => {
+        const empSum = h.youxiang + h.tanxing + h.youren;
+        return { ...h, empSum };
+      }).sort((a, b) => b.qualifyingTotal - a.qualifyingTotal || b.empSum - a.empSum);
+
+      const tbody = document.getElementById('hotelOverviewBody');
+      tbody.innerHTML = '';
+
+      if (hotels.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="px-5 py-10 text-center text-slate-400">該年度尚無符合條件的住宿紀錄</td></tr>`;
+        document.getElementById('hotelOverviewFoot').innerHTML = '';
+        return;
+      }
+
+      const formatNightCell = (val) => val > 0
+        ? `<span class="text-slate-800 font-semibold">${val} 晚</span>`
+        : `<span class="text-slate-300">0 晚</span>`;
+
+      hotels.forEach(h => {
+        const rem = HOTEL_ANNUAL_CAP - h.empSum;
+        const ratio = grandQualifyingTotal > 0 ? ((h.qualifyingTotal / grandQualifyingTotal) * 100).toFixed(2) : '0.00';
+
+        let limitHtml;
+        if (rem < 0) {
+          limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">超額${Math.abs(rem)}晚</span>`;
+        } else if (rem <= 3) {
+          limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">${rem}晚</span>`;
+        } else {
+          limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/80">${rem}晚</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-sky-50/40 transition-colors';
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-semibold text-slate-800">
+            <div class="flex items-center gap-2.5">
+              ${buildBrandLogoHtml(h.hotelName, 'sm')}
+              <span>${escapeHtml(h.hotelName)}</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.youxiang)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.tanxing)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.youren)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${limitHtml}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.other)}</td>
+          <td class="px-4 py-3 text-right font-mono-num font-bold text-sky-700">${h.qualifyingTotal} 晚</td>
+          <td class="px-4 py-3 text-right font-mono-num font-medium text-slate-600">${ratio}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('hotelOverviewFoot').innerHTML = `
+        <tr>
+          <td class="px-4 py-3.5 text-slate-800">總計</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">${grandYouxiang} 晚</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">${grandTanxing} 晚</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">${grandYouren} 晚</td>
+          <td class="px-4 py-3.5 text-right text-slate-400">—</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">${grandOther} 晚</td>
+          <td class="px-4 py-3.5 text-right font-mono-num text-sky-700">${grandQualifyingTotal} 晚</td>
+          <td class="px-4 py-3.5 text-right font-mono-num">100.00%</td>
+        </tr>
+      `;
+    }
+
+    function renderDetailTable() {
+      const keyword = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      const filtered = currentYearProcessed.filter(b =>
+        !keyword ||
+        b.hotelName.toLowerCase().includes(keyword) ||
+        b.planInfo.rawPlan.toLowerCase().includes(keyword)
+      );
+
+      const tbody = document.getElementById('detailTableBody');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-10 text-center text-slate-400">無符合條件的住宿明細</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(b => {
+        const style = getPlanStyle(b.planInfo.basePlan);
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-sky-50/40 transition-colors';
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-semibold text-slate-800">${escapeHtml(b.hotelName)}</td>
+          <td class="px-4 py-3 text-slate-600 font-mono-num text-xs">${formatDateSlash(b.checkIn)}</td>
+          <td class="px-4 py-3 text-slate-600 font-mono-num text-xs">${formatDateSlash(b.checkOut)}</td>
+          <td class="px-4 py-3 text-center font-mono-num font-bold ${b.qualifyingNights > 0 ? 'text-sky-700' : 'text-slate-300'}">${b.qualifyingNights}</td>
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${style.badge}">
+              <span class="w-1.5 h-1.5 rounded-full ${style.dot}"></span>
+              ${escapeHtml(b.planInfo.rawPlan)}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">${escapeHtml(b.employeeQuotaDisplay)}</td>
+          <td class="px-4 py-3 text-xs font-medium ${b.hotelLimitExceeded ? 'text-amber-700 font-bold' : 'text-slate-700'}">${escapeHtml(b.hotelLimitDisplay)}</td>
+          <td class="px-4 py-3 text-right font-mono-num font-semibold text-slate-800">${escapeHtml(b.priceInfo.display)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderCharts(list) {
+      if (typeof Chart === 'undefined') return;
+
+      const monthlyNights = new Array(12).fill(0);
+      const monthlyCash = new Array(12).fill(0);
+      const planCounts = {};
+
+      list.forEach(b => {
+        const mIdx = b.stayMonth - 1;
+        if (mIdx >= 0 && mIdx < 12) {
+          monthlyNights[mIdx] += b.nights;
+          if (!b.priceInfo.isPoints) {
+            monthlyCash[mIdx] += b.priceInfo.twd;
+          }
+        }
+        const pName = b.planInfo.basePlan;
+        planCounts[pName] = (planCounts[pName] || 0) + b.nights;
+      });
+
+      const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+      const barGrad = monthlyCtx.createLinearGradient(0, 0, 0, 260);
+      barGrad.addColorStop(0, 'rgba(6, 182, 212, 0.88)');
+      barGrad.addColorStop(1, 'rgba(2, 132, 199, 0.65)');
+
+      if (monthlyChartInstance) monthlyChartInstance.destroy();
+      monthlyChartInstance = new Chart(monthlyCtx, {
+        type: 'bar',
+        data: {
+          labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+          datasets: [
+            {
+              label: '總房晚數（晚）',
+              data: monthlyNights,
+              backgroundColor: barGrad,
+              hoverBackgroundColor: '#0284c7',
+              borderRadius: 6,
+              borderSkipped: false,
+              yAxisID: 'y'
+            },
+            {
+              label: '現金支出（NT$）',
+              data: monthlyCash,
+              type: 'line',
+              borderColor: '#4f46e5',
+              backgroundColor: 'rgba(79, 70, 229, 0.10)',
+              pointBackgroundColor: '#ffffff',
+              pointBorderColor: '#4f46e5',
+              pointBorderWidth: 2,
+              pointRadius: 3.5,
+              pointHoverRadius: 5,
+              borderWidth: 2.5,
+              fill: true,
+              tension: 0.35,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'top',
+              align: 'end',
+              labels: { boxWidth: 10, usePointStyle: true, color: '#475569', font: { size: 11 } }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#64748b', font: { size: 11 } }
+            },
+            y: {
+              beginAtZero: true,
+              position: 'left',
+              grid: { color: 'rgba(148, 163, 184, 0.16)' },
+              ticks: { stepSize: 1, color: '#64748b', font: { size: 11 } }
+            },
+            y1: {
+              beginAtZero: true,
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#6366f1', font: { size: 11 } }
+            }
+          }
+        }
+      });
+
+      const planLabels = Object.keys(planCounts);
+      const planValues = Object.values(planCounts);
+      const planColors = planLabels.map(name => getPlanStyle(name).chartColor);
+
+      if (planChartInstance) planChartInstance.destroy();
+      planChartInstance = new Chart(document.getElementById('planChart'), {
+        type: 'doughnut',
+        data: {
+          labels: planLabels.length ? planLabels : ['尚無資料'],
+          datasets: [{
+            data: planValues.length ? planValues : [1],
+            backgroundColor: planValues.length ? planColors : ['#e2e8f0'],
+            borderColor: '#ffffff',
+            borderWidth: 2,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '66%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                usePointStyle: true,
+                padding: 12,
+                color: '#475569',
+                font: { size: 11 }
+              }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
