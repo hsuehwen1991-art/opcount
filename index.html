@@ -120,7 +120,7 @@
           <span id="kpiPointsTotal" class="font-mono-num text-3xl font-bold text-indigo-600">0</span>
           <span class="text-xs font-medium text-slate-400">積分</span>
         </div>
-        <div id="kpiPointsValue" class="mt-1.5 text-xs text-slate-500">約折合台幣 NT$ 0（總價值 NT$ 0）</div>
+        <div id="kpiPointsValue" class="mt-1.5 text-xs text-slate-500">約折合台幣 NT$ 0</div>
       </div>
     </section>
 
@@ -154,7 +154,6 @@
             <div id="barRollover" class="h-full bg-slate-400 transition-all duration-500" style="width: 0%" title="去年結轉"></div>
             <div id="barActualStatus" class="h-full bg-sky-500 transition-all duration-500" style="width: 0%" title="今年實住"></div>
             <div id="barBonusStatus" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%" title="活動加倍"></div>
-            <!-- 40/70 白金門檻基準線 -->
             <div class="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-xs" style="left: 57.14%" title="白金門檻：40 晚"></div>
           </div>
 
@@ -195,7 +194,6 @@
           <div class="relative h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
             <div id="barActualMilestone" class="h-full bg-gradient-to-r from-sky-500 to-cyan-500 transition-all duration-500" style="width: 0%" title="今年實住"></div>
             <div id="barBonusMilestone" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%" title="活動加倍"></div>
-            <!-- 20 晚與 30 晚門檻線 -->
             <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 50%" title="20 晚里程碑"></div>
             <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 75%" title="30 晚里程碑"></div>
           </div>
@@ -208,9 +206,9 @@
       </div>
     </section>
 
-    <!-- 圖表區塊 -->
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="tech-card rounded-2xl p-5 lg:col-span-2">
+    <!-- 圖表區塊（7:5 比例，提供圓餅圖外拉指示線充足寬度） -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="tech-card rounded-2xl p-5 lg:col-span-7">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div>
             <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -221,20 +219,23 @@
           </div>
           <span class="text-[11px] font-mono-num text-slate-400">MONTHLY TREND</span>
         </div>
-        <div class="h-64">
+        <div class="h-72">
           <canvas id="monthlyChart"></canvas>
         </div>
       </div>
 
-      <div class="tech-card rounded-2xl p-5">
+      <div class="tech-card rounded-2xl p-5 lg:col-span-5">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-            <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-indigo-500 to-sky-400"></span>
-            價格方案晚數佔比
-          </h2>
+          <div>
+            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-indigo-500 to-sky-400"></span>
+              價格方案晚數佔比
+            </h2>
+            <p class="text-[11px] text-slate-400 mt-0.5 pl-3.5">依方案總入住房晚佔比標示</p>
+          </div>
           <span class="text-[11px] font-mono-num text-slate-400">RATE MIX %</span>
         </div>
-        <div class="h-64 flex items-center justify-center">
+        <div class="h-72 flex items-center justify-center">
           <canvas id="planChart"></canvas>
         </div>
       </div>
@@ -275,36 +276,152 @@
     let monthlyChartInstance = null;
     let planChartInstance = null;
 
-    const doughnutPercentPlugin = {
-      id: 'doughnutPercentPlugin',
+    // 圓餅圖外拉指示線＋圖例與百分比標註外掛（含上下防重疊處理）
+    const doughnutCalloutPlugin = {
+      id: 'doughnutCalloutPlugin',
       afterDatasetsDraw(chart) {
-        const { ctx, data } = chart;
+        const { ctx, data, width, height } = chart;
         const dataset = data.datasets[0];
-        if (!dataset || !dataset.data || dataset._isEmpty) return;
+        if (!dataset || !dataset.data) return;
 
         const meta = chart.getDatasetMeta(0);
-        const total = dataset.data.reduce((sum, val, idx) => {
-          return chart.getDataVisibility(idx) ? sum + (Number(val) || 0) : sum;
-        }, 0);
+        if (!meta || !meta.data || meta.data.length === 0) return;
+
+        // 無資料狀態：於圓環中央顯示提示文字
+        if (dataset._isEmpty) {
+          const arc0 = meta.data[0];
+          ctx.save();
+          ctx.font = '600 12px "Noto Sans TC", "Inter", sans-serif';
+          ctx.fillStyle = '#94a3b8';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('尚無資料', arc0.x, arc0.y);
+          ctx.restore();
+          return;
+        }
+
+        const total = dataset.data.reduce((sum, val) => sum + (Number(val) || 0), 0);
         if (total <= 0) return;
 
-        ctx.save();
-        ctx.font = '600 11px "JetBrains Mono", "Inter", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        const leftItems = [];
+        const rightItems = [];
 
         meta.data.forEach((arc, idx) => {
-          if (!chart.getDataVisibility(idx)) return;
           const val = Number(dataset.data[idx]) || 0;
           if (val <= 0) return;
-          const pct = (val / total) * 100;
-          if (pct < 5) return;
 
-          const pos = arc.tooltipPosition();
-          ctx.fillStyle = '#ffffff';
-          ctx.shadowColor = 'rgba(15, 23, 42, 0.40)';
-          ctx.shadowBlur = 3;
-          ctx.fillText(`${pct.toFixed(1)}%`, pos.x, pos.y);
+          const midAngle = (arc.startAngle + arc.endAngle) / 2;
+          const cos = Math.cos(midAngle);
+          const sin = Math.sin(midAngle);
+          const isRight = cos >= 0;
+          const pct = ((val / total) * 100).toFixed(1);
+          const rawLabel = (data.labels && data.labels[idx]) ? String(data.labels[idx]) : '';
+          const color = Array.isArray(dataset.backgroundColor)
+            ? dataset.backgroundColor[idx]
+            : '#0284c7';
+
+          const item = {
+            cx: arc.x,
+            cy: arc.y,
+            outerRadius: arc.outerRadius,
+            midAngle,
+            cos,
+            sin,
+            isRight,
+            label: rawLabel,
+            pctText: `${pct}%`,
+            color,
+            y: arc.y + sin * (arc.outerRadius + 14)
+          };
+
+          if (isRight) {
+            rightItems.push(item);
+          } else {
+            leftItems.push(item);
+          }
+        });
+
+        // 針對左右兩側分別做垂直防重疊調整
+        const minGap = 32;
+        const topBound = 18;
+        const bottomBound = height - 18;
+
+        function resolveCollisions(items) {
+          if (items.length === 0) return;
+          items.sort((a, b) => a.y - b.y);
+
+          // 向下推開重疊項
+          for (let i = 0; i < items.length; i++) {
+            if (i === 0) {
+              items[i].y = Math.max(topBound, items[i].y);
+            } else {
+              items[i].y = Math.max(items[i].y, items[i - 1].y + minGap);
+            }
+          }
+
+          // 若最底項超出下邊界，反向往上回推
+          if (items[items.length - 1].y > bottomBound) {
+            items[items.length - 1].y = bottomBound;
+            for (let i = items.length - 2; i >= 0; i--) {
+              items[i].y = Math.min(items[i].y, items[i + 1].y - minGap);
+            }
+            if (items[0].y < topBound) {
+              items[0].y = topBound;
+            }
+          }
+        }
+
+        resolveCollisions(rightItems);
+        resolveCollisions(leftItems);
+
+        const allItems = rightItems.concat(leftItems);
+
+        ctx.save();
+        allItems.forEach(item => {
+          const p0x = item.cx + item.cos * (item.outerRadius + 2);
+          const p0y = item.cy + item.sin * (item.outerRadius + 2);
+          const p1x = item.cx + item.cos * (item.outerRadius + 11);
+          const p1y = item.cy + item.sin * (item.outerRadius + 11);
+
+          const kneeX = item.isRight
+            ? Math.max(p1x + 5, item.cx + item.outerRadius + 14)
+            : Math.min(p1x - 5, item.cx - item.outerRadius - 14);
+          const endX = item.isRight ? kneeX + 8 : kneeX - 8;
+
+          // 繪製外拉折線
+          ctx.beginPath();
+          ctx.moveTo(p0x, p0y);
+          ctx.lineTo(p1x, p1y);
+          ctx.lineTo(kneeX, item.y);
+          ctx.lineTo(endX, item.y);
+          ctx.strokeStyle = item.color;
+          ctx.lineWidth = 1.4;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+
+          // 折線末端色彩圓點
+          ctx.beginPath();
+          ctx.arc(endX, item.y, 2.4, 0, Math.PI * 2);
+          ctx.fillStyle = item.color;
+          ctx.fill();
+
+          // 計算可用文字寬度避免超出畫布邊緣
+          const textX = item.isRight ? endX + 6 : endX - 6;
+          const maxTextW = Math.max(56, item.isRight ? (width - textX - 4) : (textX - 4));
+
+          ctx.textAlign = item.isRight ? 'left' : 'right';
+          ctx.textBaseline = 'middle';
+
+          // 第 1 行：方案名稱
+          ctx.font = '600 11px "Noto Sans TC", "Inter", sans-serif';
+          ctx.fillStyle = '#334155';
+          ctx.fillText(item.label, textX, item.y - 6.5, maxTextW);
+
+          // 第 2 行：百分比（等寬字體搭配對應方案色）
+          ctx.font = '700 11px "JetBrains Mono", "Inter", sans-serif';
+          ctx.fillStyle = item.color;
+          ctx.fillText(item.pctText, textX, item.y + 7.5, maxTextW);
         });
         ctx.restore();
       }
@@ -384,11 +501,10 @@
       document.getElementById('kpiCashSpend').textContent = cashTwd.toLocaleString();
       document.getElementById('kpiAvgRate').textContent = `付費房晚平均每晚 NT$ ${avgNight.toLocaleString()}`;
       document.getElementById('kpiPointsTotal').textContent = pointsTotal.toLocaleString();
-      document.getElementById('kpiPointsValue').textContent = `約折合台幣 NT$ ${pointsTwd.toLocaleString()}（總價值 NT$ ${(cashTwd + pointsTwd).toLocaleString()}）`;
+      document.getElementById('kpiPointsValue').textContent = `約折合台幣 NT$ ${pointsTwd.toLocaleString()}`;
     }
 
     function renderSprintCards(m) {
-      // 左卡：會籍定級進度
       document.getElementById('sprintStatusBreakdown').textContent =
         `結轉 ${m.rolloverNights} 晚 ＋ 實住 ${m.actualQualifyingNights} 晚 ＋ 活動加倍 ${m.statusBonusNights} 晚`;
 
@@ -417,7 +533,6 @@
       document.getElementById('barActualStatus').style.width = `${actPct.toFixed(2)}%`;
       document.getElementById('barBonusStatus').style.width = `${bonPct.toFixed(2)}%`;
 
-      // 右卡：進階獎勵（40 晚年度行政酒廊）
       document.getElementById('sprintMilestoneBreakdown').textContent =
         `實住 ${m.actualQualifyingNights} 晚 ＋ 活動加倍 ${m.milestoneBonusNights} 晚（不含去年結轉）`;
       document.getElementById('sprintMilestoneTotal').textContent = m.totalMilestoneNights;
@@ -513,8 +628,9 @@
         planCounts[pName] = (planCounts[pName] || 0) + b.nights;
       });
 
+      // 1. 各月份房晚與現金支出分佈（預設隱藏現金支出曲線）
       const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-      const barGrad = monthlyCtx.createLinearGradient(0, 0, 0, 260);
+      const barGrad = monthlyCtx.createLinearGradient(0, 0, 0, 280);
       barGrad.addColorStop(0, 'rgba(6, 182, 212, 0.88)');
       barGrad.addColorStop(1, 'rgba(2, 132, 199, 0.65)');
 
@@ -591,24 +707,23 @@
         }
       });
 
+      // 2. 價格方案晚數佔比（外拉指示線顯示方案名稱與百分比，關閉下方圖例）
+      const planCanvas = document.getElementById('planChart');
+      const containerWidth = (planCanvas.parentElement && planCanvas.parentElement.clientWidth) || 420;
+      const sidePadding = Math.max(92, Math.min(142, Math.round(containerWidth * 0.31)));
+
       const planLabels = Object.keys(planCounts);
       const planValues = Object.values(planCounts);
       const hasData = planValues.length > 0 && planValues.some(v => v > 0);
       const totalPlanNights = planValues.reduce((sum, v) => sum + v, 0);
       const planColors = planLabels.map(name => IHGApp.getPlanStyle(name).chartColor);
-      const formattedLabels = hasData
-        ? planLabels.map((name, i) => {
-            const pct = totalPlanNights > 0 ? ((planValues[i] / totalPlanNights) * 100).toFixed(1) : '0.0';
-            return `${name} (${pct}%)`;
-          })
-        : ['尚無資料'];
 
       if (planChartInstance) planChartInstance.destroy();
-      planChartInstance = new Chart(document.getElementById('planChart'), {
+      planChartInstance = new Chart(planCanvas, {
         type: 'doughnut',
-        plugins: [doughnutPercentPlugin],
+        plugins: [doughnutCalloutPlugin],
         data: {
-          labels: formattedLabels,
+          labels: hasData ? planLabels : ['尚無資料'],
           datasets: [{
             data: hasData ? planValues : [1],
             backgroundColor: hasData ? planColors : ['#e2e8f0'],
@@ -622,16 +737,17 @@
           responsive: true,
           maintainAspectRatio: false,
           cutout: '56%',
+          layout: {
+            padding: {
+              top: 30,
+              bottom: 30,
+              left: sidePadding,
+              right: sidePadding
+            }
+          },
           plugins: {
             legend: {
-              position: 'bottom',
-              labels: {
-                boxWidth: 10,
-                usePointStyle: true,
-                padding: 10,
-                color: '#475569',
-                font: { size: 11 }
-              }
+              display: false
             },
             tooltip: {
               callbacks: {
