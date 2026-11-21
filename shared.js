@@ -36,6 +36,7 @@
     { id: 'diamond', name: '鑽石精英', minNights: 70, badgeCls: 'bg-indigo-50 text-indigo-700 border-indigo-200' }
   ];
 
+  // 進階獎勵里程碑（僅保留 20 – 70 晚，共 6 階）
   const MILESTONE_REWARDS = [
     {
       nights: 20,
@@ -83,24 +84,6 @@
         '10,000 獎勵積分',
         '5 張 US$20 餐飲抵用券'
       ]
-    },
-    {
-      nights: 80,
-      picks: 1,
-      isCoreGoal: false,
-      options: ['10,000 獎勵積分', '5 張 US$20 餐飲抵用券']
-    },
-    {
-      nights: 90,
-      picks: 1,
-      isCoreGoal: false,
-      options: ['10,000 獎勵積分', '5 張 US$20 餐飲抵用券']
-    },
-    {
-      nights: 100,
-      picks: 1,
-      isCoreGoal: false,
-      options: ['10,000 獎勵積分', '5 張 US$20 餐飲抵用券']
     }
   ];
 
@@ -888,7 +871,6 @@
     const yearStart = `${selectedYear}-01-01`;
     const yearEndExclusive = `${selectedYear + 1}-01-01`;
 
-    // 1. 當年度實際去重疊定級日期（含入住飯店對照）
     const yearNightEntries = [];
     state.allProcessedBookings
       .filter(b => b.stayYear === selectedYear)
@@ -901,7 +883,6 @@
 
     const actualQualifyingNights = yearNightEntries.length;
 
-    // 2. 計算結轉房晚（優先採【IHG活動】手動結轉，無則依前一年實住自動推算）
     let rolloverNights = 0;
     let rolloverSource = 'none';
     let rolloverNote = '無結轉房晚';
@@ -929,7 +910,6 @@
       }
     }
 
-    // 3. 套用與該年度重疊的定向加倍活動
     let statusBonusNights = 0;
     let milestoneBonusNights = 0;
     const yearPromos = [];
@@ -963,7 +943,6 @@
       });
     });
 
-    // 4. 雙軌加總
     const totalStatusNights = actualQualifyingNights + statusBonusNights + rolloverNights;
     const totalMilestoneNights = actualQualifyingNights + milestoneBonusNights;
 
