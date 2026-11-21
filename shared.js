@@ -12,7 +12,7 @@
   const STORAGE_KEYS = {
     SELECTED_YEAR: 'ihg_selected_year_v1',
     RATES: 'ihg_exchange_rates_v1',
-    DATA_PREFIX: 'ihg_calendar_cache_v2_'
+    DATA_PREFIX: 'ihg_calendar_cache_v3_'
   };
 
   const NAV_ITEMS = [
@@ -36,7 +36,7 @@
     { id: 'diamond', name: '鑽石精英', minNights: 70, badgeCls: 'bg-indigo-50 text-indigo-700 border-indigo-200' }
   ];
 
-  // 進階獎勵里程碑（僅保留 20 – 70 晚，共 6 階）
+  // 進階獎勵里程碑（20 – 70 晚，共 6 階）
   const MILESTONE_REWARDS = [
     {
       nights: 20,
@@ -693,7 +693,8 @@
 
       const hotelName = (ev.summary || '未命名飯店').trim();
       const checkInStr = ev.start.date;
-      const checkOutStr = ev.end.date;
+      // Google Calendar 全天行程的 end.date 為排他性（隔日 00:00），減 1 天才是日曆行程的最後一天（退房日）
+      const checkOutStr = ev.end.date > checkInStr ? addDaysIso(ev.end.date, -1) : checkInStr;
       const checkInYear = parseInt(checkInStr.slice(0, 4), 10);
       const dIn = parseLocalDate(checkInStr);
       const dOut = parseLocalDate(checkOutStr);
