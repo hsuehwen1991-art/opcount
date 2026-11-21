@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>住宿明細｜IHG 員工價住宿統計儀表板</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f3f7fc;
+      background-image:
+        radial-gradient(circle at 12% 0%, rgba(14, 165, 233, 0.10) 0%, transparent 38%),
+        radial-gradient(circle at 88% 8%, rgba(99, 102, 241, 0.08) 0%, transparent 34%),
+        radial-gradient(#cbd5e1 0.85px, transparent 0.85px);
+      background-size: 100% 100%, 100% 100%, 24px 24px;
+      background-attachment: fixed;
+    }
+
+    .font-mono-num {
+      font-family: 'JetBrains Mono', 'Inter', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tech-card {
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(203, 213, 225, 0.75);
+      box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(14, 165, 233, 0.04);
+    }
+
+    .table-container::-webkit-scrollbar { height: 7px; }
+    .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 9999px; }
+    .table-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; }
+    .table-container::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen">
+
+  <!-- 共用頂部導覽列（由 shared.js 渲染） -->
+  <div id="appHeader"></div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- 共用年份與匯率控制列（由 shared.js 渲染） -->
+    <div id="appControls"></div>
+
+    <!-- 住宿明細清單 -->
+    <section class="tech-card rounded-2xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+        <div>
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
+            住宿明細清單（依入住日期由近到遠排列）
+          </h2>
+          <div class="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>優享價</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200"><span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>彈性價</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>友人價</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>大使免費週末住宿</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>獎勵住宿</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>其他方案</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <span id="detailCountBadge" class="font-mono-num text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200/70">
+            0 筆
+          </span>
+          <div class="relative">
+            <input type="text" id="searchInput" oninput="renderDetailTable()" placeholder="搜尋飯店或價格方案..." class="rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none transition w-48 sm:w-60" />
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="table-container overflow-x-auto">
+        <table class="w-full text-sm text-left whitespace-nowrap">
+          <thead class="bg-slate-50/90 text-slate-500 text-xs font-semibold border-b border-slate-200/80">
+            <tr>
+              <th class="px-4 py-3">飯店名稱</th>
+              <th class="px-4 py-3">入住日</th>
+              <th class="px-4 py-3">退房日</th>
+              <th class="px-4 py-3 text-center">定級房晚</th>
+              <th class="px-4 py-3">價格方案</th>
+              <th class="px-4 py-3">員工價額度房晚</th>
+              <th class="px-4 py-3">飯店年度限額</th>
+              <th class="px-4 py-3 text-right">價格</th>
+            </tr>
+          </thead>
+          <tbody id="detailTableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="shared.js"></script>
+  <script>
+    let currentYearList = [];
+
+    function renderDetailTable() {
+      const keyword = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      const filtered = currentYearList.filter(b =>
+        !keyword ||
+        b.hotelName.toLowerCase().includes(keyword) ||
+        b.planInfo.rawPlan.toLowerCase().includes(keyword)
+      );
+
+      document.getElementById('detailCountBadge').textContent = `${filtered.length} 筆`;
+
+      const tbody = document.getElementById('detailTableBody');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-12 text-center text-slate-400">無符合條件的住宿明細</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(b => {
+        const style = IHGApp.getPlanStyle(b.planInfo.basePlan);
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-sky-50/40 transition-colors';
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-semibold text-slate-800">
+            <div class="flex items-center gap-2.5">
+              ${IHGApp.buildBrandLogoHtml(b.hotelName, 'sm')}
+              <span>${IHGApp.escapeHtml(b.hotelName)}</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 text-slate-600 font-mono-num text-xs">${IHGApp.formatDateSlash(b.checkIn)}</td>
+          <td class="px-4 py-3 text-slate-600 font-mono-num text-xs">${IHGApp.formatDateSlash(b.checkOut)}</td>
+          <td class="px-4 py-3 text-center font-mono-num font-bold ${b.qualifyingNights > 0 ? 'text-sky-700' : 'text-slate-300'}">${b.qualifyingNights}</td>
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${style.badge}">
+              <span class="w-1.5 h-1.5 rounded-full ${style.dot}"></span>
+              ${IHGApp.escapeHtml(b.planInfo.rawPlan)}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">${IHGApp.escapeHtml(b.employeeQuotaDisplay)}</td>
+          <td class="px-4 py-3 text-xs font-medium ${b.hotelLimitExceeded ? 'text-amber-700 font-bold' : 'text-slate-700'}">${IHGApp.escapeHtml(b.hotelLimitDisplay)}</td>
+          <td class="px-4 py-3 text-right font-mono-num font-semibold text-slate-800">${IHGApp.escapeHtml(b.priceInfo.display)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    IHGApp.init({
+      activePage: 'details',
+      onRender({ yearBookings }) {
+        currentYearList = yearBookings;
+        renderDetailTable();
+      }
+    });
+  </script>
+</body>
+</html>
