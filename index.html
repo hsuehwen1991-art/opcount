@@ -51,15 +51,13 @@
 </head>
 <body class="text-slate-800 antialiased min-h-screen">
 
-  <!-- 共用頂部導覽列（由 shared.js 渲染） -->
   <div id="appHeader"></div>
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-    <!-- 共用年份與匯率控制列（由 shared.js 渲染） -->
     <div id="appControls"></div>
 
-    <!-- KPI 摘要卡片（順序：最愛飯店、定級房晚、現金支出總計、積分兌換總計） -->
+    <!-- KPI 摘要卡片 -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <!-- 1. 最愛飯店 -->
       <div class="tech-card tech-card-hover rounded-2xl p-5 relative overflow-hidden">
@@ -123,6 +121,90 @@
           <span class="text-xs font-medium text-slate-400">積分</span>
         </div>
         <div id="kpiPointsValue" class="mt-1.5 text-xs text-slate-500">約折合台幣 NT$ 0（總價值 NT$ 0）</div>
+      </div>
+    </section>
+
+    <!-- 會籍與進階目標衝刺（雙軌進度卡） -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- 左卡：會籍定級進度（白金 40 / 鑽石 70） -->
+      <div class="tech-card rounded-2xl p-5 flex flex-col justify-between gap-3.5">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-indigo-500 to-sky-400"></span>
+              <h2 class="text-sm sm:text-base font-bold text-slate-800">會籍定級進度（白金 40 ／ 鑽石 70）</h2>
+            </div>
+            <p id="sprintStatusBreakdown" class="text-xs text-slate-500 mt-1 pl-3.5">結轉 0 晚 ＋ 實住 0 晚 ＋ 活動加倍 0 晚</p>
+          </div>
+          <span id="sprintTierBadge" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 shrink-0">
+            俱樂部會員
+          </span>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-baseline justify-between text-xs">
+            <span class="font-mono-num font-bold text-slate-800">
+              <span id="sprintStatusTotal" class="text-xl text-indigo-600">0</span> / 70 晚
+            </span>
+            <span id="sprintStatusGap" class="font-semibold text-slate-600">距離白金還差 40 晚 ｜ 距離鑽石還差 70 晚</span>
+          </div>
+
+          <!-- 分段進度條（含 40 晚白金標線） -->
+          <div class="relative h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
+            <div id="barRollover" class="h-full bg-slate-400 transition-all duration-500" style="width: 0%" title="去年結轉"></div>
+            <div id="barActualStatus" class="h-full bg-sky-500 transition-all duration-500" style="width: 0%" title="今年實住"></div>
+            <div id="barBonusStatus" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%" title="活動加倍"></div>
+            <!-- 40/70 白金門檻基準線 -->
+            <div class="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-xs" style="left: 57.14%" title="白金門檻：40 晚"></div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+            <div class="flex items-center gap-3">
+              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-400"></span>結轉</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500"></span>實住</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-teal-500"></span>加倍</span>
+            </div>
+            <span class="font-mono-num">白金 40 晚 ｜ 鑽石 70 晚</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右卡：進階獎勵進度（目標 40 晚年度行政酒廊） -->
+      <div class="tech-card rounded-2xl p-5 flex flex-col justify-between gap-3.5">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-amber-500 to-cyan-400"></span>
+              <h2 class="text-sm sm:text-base font-bold text-slate-800">年度行政酒廊衝刺（進階獎勵 40 晚）</h2>
+            </div>
+            <p id="sprintMilestoneBreakdown" class="text-xs text-slate-500 mt-1 pl-3.5">實住 0 晚 ＋ 活動加倍 0 晚（不含去年結轉）</p>
+          </div>
+          <a id="sprintMilestoneLink" data-nav-href="milestones.html" href="milestones.html" class="nav-link-item inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200/80 transition shrink-0">
+            完整獎勵 &rarr;
+          </a>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-baseline justify-between text-xs">
+            <span class="font-mono-num font-bold text-slate-800">
+              <span id="sprintMilestoneTotal" class="text-xl text-cyan-700">0</span> / 40 晚
+            </span>
+            <span id="sprintLoungeGap" class="font-semibold text-amber-700">距離年度行政酒廊還差 40 晚</span>
+          </div>
+
+          <div class="relative h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
+            <div id="barActualMilestone" class="h-full bg-gradient-to-r from-sky-500 to-cyan-500 transition-all duration-500" style="width: 0%" title="今年實住"></div>
+            <div id="barBonusMilestone" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%" title="活動加倍"></div>
+            <!-- 20 晚與 30 晚門檻線 -->
+            <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 50%" title="20 晚里程碑"></div>
+            <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 75%" title="30 晚里程碑"></div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+            <span id="sprintNextMilestone">下一里程碑：20 晚（尚差 20 晚）</span>
+            <span class="font-mono-num">20 晚 ｜ 30 晚 ｜ 40 晚酒廊</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -193,7 +275,6 @@
     let monthlyChartInstance = null;
     let planChartInstance = null;
 
-    // 圓餅圖切片內顯示百分比的輕量外掛（不依賴外部 CDN 外掛）
     const doughnutPercentPlugin = {
       id: 'doughnutPercentPlugin',
       afterDatasetsDraw(chart) {
@@ -217,7 +298,7 @@
           const val = Number(dataset.data[idx]) || 0;
           if (val <= 0) return;
           const pct = (val / total) * 100;
-          if (pct < 5) return; // 小於 5% 避免擠壓，仍可從下方圖例與提示框查看
+          if (pct < 5) return;
 
           const pos = arc.tooltipPosition();
           ctx.fillStyle = '#ffffff';
@@ -306,6 +387,67 @@
       document.getElementById('kpiPointsValue').textContent = `約折合台幣 NT$ ${pointsTwd.toLocaleString()}（總價值 NT$ ${(cashTwd + pointsTwd).toLocaleString()}）`;
     }
 
+    function renderSprintCards(m) {
+      // 左卡：會籍定級進度
+      document.getElementById('sprintStatusBreakdown').textContent =
+        `結轉 ${m.rolloverNights} 晚 ＋ 實住 ${m.actualQualifyingNights} 晚 ＋ 活動加倍 ${m.statusBonusNights} 晚`;
+
+      const tierBadge = document.getElementById('sprintTierBadge');
+      tierBadge.className = `inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${m.currentTier.badgeCls}`;
+      tierBadge.textContent = m.currentTier.name;
+
+      document.getElementById('sprintStatusTotal').textContent = m.totalStatusNights;
+
+      let statusGapText;
+      if (m.toDiamond === 0) {
+        statusGapText = '已達成鑽石精英會籍！';
+      } else if (m.toPlatinum === 0) {
+        statusGapText = `已達白金 ｜ 距離鑽石還差 ${m.toDiamond} 晚`;
+      } else {
+        statusGapText = `距白金還差 ${m.toPlatinum} 晚 ｜ 距鑽石還差 ${m.toDiamond} 晚`;
+      }
+      document.getElementById('sprintStatusGap').textContent = statusGapText;
+
+      const statusCap = Math.max(70, m.totalStatusNights);
+      const rollPct = Math.min(100, (m.rolloverNights / statusCap) * 100);
+      const actPct = Math.min(100 - rollPct, (m.actualQualifyingNights / statusCap) * 100);
+      const bonPct = Math.min(100 - rollPct - actPct, (m.statusBonusNights / statusCap) * 100);
+
+      document.getElementById('barRollover').style.width = `${rollPct.toFixed(2)}%`;
+      document.getElementById('barActualStatus').style.width = `${actPct.toFixed(2)}%`;
+      document.getElementById('barBonusStatus').style.width = `${bonPct.toFixed(2)}%`;
+
+      // 右卡：進階獎勵（40 晚年度行政酒廊）
+      document.getElementById('sprintMilestoneBreakdown').textContent =
+        `實住 ${m.actualQualifyingNights} 晚 ＋ 活動加倍 ${m.milestoneBonusNights} 晚（不含去年結轉）`;
+      document.getElementById('sprintMilestoneTotal').textContent = m.totalMilestoneNights;
+
+      const loungeGapEl = document.getElementById('sprintLoungeGap');
+      if (m.toLounge === 0) {
+        loungeGapEl.textContent = '已解鎖 40 晚年度行政酒廊！';
+        loungeGapEl.className = 'font-semibold text-emerald-600';
+      } else {
+        loungeGapEl.textContent = `距離年度行政酒廊還差 ${m.toLounge} 晚`;
+        loungeGapEl.className = 'font-semibold text-amber-700';
+      }
+
+      const loungeActPct = Math.min(100, (m.actualQualifyingNights / 40) * 100);
+      const loungeBonPct = Math.min(100 - loungeActPct, (m.milestoneBonusNights / 40) * 100);
+      document.getElementById('barActualMilestone').style.width = `${loungeActPct.toFixed(2)}%`;
+      document.getElementById('barBonusMilestone').style.width = `${loungeBonPct.toFixed(2)}%`;
+
+      const nextEl = document.getElementById('sprintNextMilestone');
+      if (m.nextMilestone) {
+        const diff = m.nextMilestone.nights - m.totalMilestoneNights;
+        nextEl.textContent = `下一里程碑：${m.nextMilestone.nights} 晚（尚差 ${diff} 晚）`;
+      } else {
+        nextEl.textContent = '已解鎖全數 100 晚進階獎勵里程碑';
+      }
+
+      const linkEl = document.getElementById('sprintMilestoneLink');
+      if (linkEl) linkEl.href = `milestones.html?year=${m.selectedYear}`;
+    }
+
     function renderQuotaOverviewTable(selectedYear, allBookings) {
       const prevYear = selectedYear - 1;
       document.getElementById('thPrevUsed').textContent = `${prevYear}已使用晚數`;
@@ -371,7 +513,6 @@
         planCounts[pName] = (planCounts[pName] || 0) + b.nights;
       });
 
-      // 1. 各月份房晚與現金支出分佈（預設隱藏現金支出曲線，點擊圖例可開啟）
       const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
       const barGrad = monthlyCtx.createLinearGradient(0, 0, 0, 260);
       barGrad.addColorStop(0, 'rgba(6, 182, 212, 0.88)');
@@ -450,7 +591,6 @@
         }
       });
 
-      // 2. 價格方案晚數佔比（圖內、圖例與提示框完整顯示百分比）
       const planLabels = Object.keys(planCounts);
       const planValues = Object.values(planCounts);
       const hasData = planValues.length > 0 && planValues.some(v => v > 0);
@@ -512,8 +652,9 @@
 
     IHGApp.init({
       activePage: 'index',
-      onRender({ selectedYear, allBookings, yearBookings }) {
+      onRender({ selectedYear, allBookings, yearBookings, membership }) {
         renderKPIs(yearBookings);
+        renderSprintCards(membership);
         renderQuotaOverviewTable(selectedYear, allBookings);
         renderCharts(yearBookings);
       }
