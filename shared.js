@@ -12,13 +12,14 @@
   const STORAGE_KEYS = {
     SELECTED_YEAR: 'ihg_selected_year_v1',
     RATES: 'ihg_exchange_rates_v1',
-    DATA_PREFIX: 'ihg_calendar_cache_v1_'
+    DATA_PREFIX: 'ihg_calendar_cache_v2_'
   };
 
   const NAV_ITEMS = [
     { id: 'index', label: '數據總覽', href: 'index.html' },
     { id: 'hotels', label: '各飯店總覽', href: 'hotels.html' },
-    { id: 'details', label: '住宿明細', href: 'details.html' }
+    { id: 'details', label: '住宿明細', href: 'details.html' },
+    { id: 'milestones', label: '進階獎勵', href: 'milestones.html' }
   ];
 
   const EMPLOYEE_PLANS = {
@@ -26,6 +27,82 @@
     'IHG One Pass 彈性價': { limit: Infinity, order: 2 },
     'IHG One Pass 友人價': { limit: 50, order: 3 }
   };
+
+  const MEMBERSHIP_TIERS = [
+    { id: 'club', name: '俱樂部會員', minNights: 0, badgeCls: 'bg-slate-100 text-slate-600 border-slate-200' },
+    { id: 'silver', name: '銀卡精英', minNights: 10, badgeCls: 'bg-slate-100 text-slate-700 border-slate-300' },
+    { id: 'gold', name: '金卡精英', minNights: 20, badgeCls: 'bg-amber-50 text-amber-700 border-amber-200' },
+    { id: 'platinum', name: '白金精英', minNights: 40, badgeCls: 'bg-sky-50 text-sky-700 border-sky-200' },
+    { id: 'diamond', name: '鑽石精英', minNights: 70, badgeCls: 'bg-indigo-50 text-indigo-700 border-indigo-200' }
+  ];
+
+  const MILESTONE_REWARDS = [
+    {
+      nights: 20,
+      picks: 1,
+      isCoreGoal: false,
+      options: ['5,000 獎勵積分', '2 張 US$20 餐飲抵用券', '1 張可確認套房升級券']
+    },
+    {
+      nights: 30,
+      picks: 1,
+      isCoreGoal: false,
+      options: ['5,000 獎勵積分', '2 張 US$20 餐飲抵用券']
+    },
+    {
+      nights: 40,
+      picks: 2,
+      isCoreGoal: true,
+      coreLabel: '核心目標：年度行政酒廊',
+      options: [
+        '年度行政酒廊使用權（限選 1 次）',
+        '1 張可確認套房升級券（限選 1 次）',
+        '10,000 獎勵積分',
+        '5 張 US$20 餐飲抵用券'
+      ]
+    },
+    {
+      nights: 50,
+      picks: 1,
+      isCoreGoal: false,
+      options: ['10,000 獎勵積分', '5 張 US$20 餐飲抵用券']
+    },
+    {
+      nights: 60,
+      picks: 1,
+      isCoreGoal: false,
+      options: ['10,000 獎勵積分', '5 張 US$20 餐飲抵用券']
+    },
+    {
+      nights: 70,
+      picks: 2,
+      isCoreGoal: false,
+      options: [
+        '年度行政酒廊使用權（限選 1 次）',
+        '2 張可確認套房升級券（限選 1 次）',
+        '10,000 獎勵積分',
+        '5 張 US$20 餐飲抵用券'
+      ]
+    },
+    {
+      nights: 80,
+      picks: 1,
+      isCoreGoal: false,
+      options: ['10,000 獎勵積分', '5 張 US$20 餐飲抵用券']
+    },
+    {
+      nights: 90,
+      picks: 1,
+      isCoreGoal: false,
+      options: ['10,000 獎勵積分', '5 張 US$20 餐飲抵用券']
+    },
+    {
+      nights: 100,
+      picks: 1,
+      isCoreGoal: false,
+      options: ['10,000 獎勵積分', '5 張 US$20 餐飲抵用券']
+    }
+  ];
 
   // 飯店品牌關鍵字比對規則（將「智選假日」「皇冠」排在「假日酒店」之前，避免誤判）
   const HOTEL_BRAND_RULES = [
@@ -40,7 +117,6 @@
     { keyword: '假日酒店', brand: 'Holiday Inn', file: 'HolidayInn.svg' }
   ];
 
-  // 5 種主要方案專屬色標；其他方案一律灰色
   const PLAN_STYLES = {
     'IHG One Pass 優享價': {
       badge: 'bg-sky-50 text-sky-700 border-sky-200',
@@ -75,9 +151,15 @@
     chartColor: '#94a3b8'
   };
 
-  // 價格行驗證規則（確認說明欄第 2 / 4 行確實為金額或積分格式，替代顏色過濾）
+  // 價格行驗證規則（替代顏色過濾）
   const CURRENCY_TOKEN = '(?:NT\\$|US\\$|HK\\$|SG\\$|TWD|USD|THB|VND|JPY|EUR|CNY|RMB|HKD|SGD|KRW|MYR|台幣|美金|美元|泰銖|越南盾|日圓|日幣|歐元|人民幣|港幣|新幣|韓元|馬幣|元|積分|點|pts?|points?|[\\$€¥฿₫₩])';
   const PRICE_LINE_REGEX = new RegExp(`^${CURRENCY_TOKEN}?\\s*[\\d,]+(?:\\.\\d+)?\\s*${CURRENCY_TOKEN}?$`, 'i');
+
+  // 【IHG活動】日曆標題解析規則
+  const ROLLOVER_TITLE_REGEX = /(?:【\s*)?會員等級結轉(?:\s*】)?\s*[:：]?\s*(\d+)\s*晚?/;
+  const PROMO_TITLE_REGEX = /IHG\s*洲際優悅會定向活動\s*[:：]\s*(\d+)\s*房?晚加[倍被]/i;
+  const PROMO_FALLBACK_REGEX = /(\d+)\s*房?晚加[倍被]/;
+  const PROMO_UNLIMITED_REGEX = /IHG\s*洲際優悅會定向活動.*無上限|無上限.*加[倍被]/i;
 
   const DEFAULT_RATES = {
     TWD: 1,
@@ -100,6 +182,9 @@
     exchangeRates: { ...DEFAULT_RATES },
     allProcessedBookings: [],
     currentYearProcessed: [],
+    activityCalendarFound: false,
+    manualRolloverByYear: {},
+    promoRules: [],
     latestRequestId: 0
   };
 
@@ -107,19 +192,11 @@
   // 工具函式
   // =========================================================================
   function safeSessionGet(key) {
-    try {
-      return global.sessionStorage.getItem(key);
-    } catch (_) {
-      return null;
-    }
+    try { return global.sessionStorage.getItem(key); } catch (_) { return null; }
   }
 
   function safeSessionSet(key, val) {
-    try {
-      global.sessionStorage.setItem(key, val);
-    } catch (_) {
-      // 略過無痕或禁用儲存空間錯誤
-    }
+    try { global.sessionStorage.setItem(key, val); } catch (_) {}
   }
 
   function escapeHtml(str) {
@@ -185,8 +262,14 @@
     return new Date(y, m - 1, d);
   }
 
+  function addDaysIso(dateStr, deltaDays) {
+    const d = parseLocalDate(dateStr);
+    d.setDate(d.getDate() + deltaDays);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   function formatDateSlash(dateStr) {
-    return dateStr.replace(/-/g, '/');
+    return (dateStr || '').replace(/-/g, '/');
   }
 
   function formatSyncTimestamp(dateObj) {
@@ -212,7 +295,7 @@
           : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium';
         return `
           <a data-nav-href="${item.href}" href="${item.href}?year=${state.selectedYear}"
-             class="nav-link-item px-3.5 py-1.5 rounded-lg text-xs sm:text-sm transition whitespace-nowrap ${cls}">
+             class="nav-link-item px-3 py-1.5 rounded-lg text-xs sm:text-sm transition whitespace-nowrap ${cls}">
             ${item.label}
           </a>
         `;
@@ -235,7 +318,7 @@
               </a>
             </div>
 
-            <nav aria-label="頁面切換" class="order-3 lg:order-2 w-full lg:w-auto flex items-center justify-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
+            <nav aria-label="頁面切換" class="order-3 lg:order-2 w-full lg:w-auto flex items-center justify-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 overflow-x-auto">
               <div class="flex items-center gap-1 w-full lg:w-auto justify-around lg:justify-start">
                 ${navLinksHtml}
               </div>
@@ -339,9 +422,7 @@
       const url = new URL(global.location.href);
       url.searchParams.set('year', String(year));
       global.history.replaceState(null, '', url.toString());
-    } catch (_) {
-      // 忽略 file:// 協議下 replaceState 限制
-    }
+    } catch (_) {}
   }
 
   function setStatus(type, text) {
@@ -458,14 +539,15 @@
     const endYear = selectedYear + 1;
     const cacheKey = `${STORAGE_KEYS.DATA_PREFIX}${startYear}_${endYear}`;
 
-    // 若非強制刷新且 sessionStorage 有快取，秒開呈現
     if (!forceRefresh) {
       const cachedRaw = safeSessionGet(cacheKey);
       if (cachedRaw) {
         try {
           const cached = JSON.parse(cachedRaw);
           if (cached && Array.isArray(cached.items)) {
+            state.activityCalendarFound = Boolean(cached.activityCalendarFound);
             processEvents(cached.items);
+            processActivityEvents(cached.activityItems || []);
             setStatus('success', `已同步 ${cached.syncedAt || formatSyncTimestamp(new Date())}`);
             triggerPageRender();
             return;
@@ -495,10 +577,20 @@
       }
 
       const items = data.items || [];
+      const activityItems = data.activityItems || [];
+      const activityCalendarFound = Boolean(data.activityCalendarFound);
       const syncedAt = formatSyncTimestamp(new Date());
-      safeSessionSet(cacheKey, JSON.stringify({ items, syncedAt }));
 
+      safeSessionSet(cacheKey, JSON.stringify({
+        items,
+        activityItems,
+        activityCalendarFound,
+        syncedAt
+      }));
+
+      state.activityCalendarFound = activityCalendarFound;
       processEvents(items);
+      processActivityEvents(activityItems);
       setStatus('success', `已同步 ${syncedAt}`);
       triggerPageRender();
     } catch (err) {
@@ -507,6 +599,8 @@
       setStatus('error', err.message || '資料同步失敗');
       state.allProcessedBookings = [];
       state.currentYearProcessed = [];
+      state.manualRolloverByYear = {};
+      state.promoRules = [];
       triggerPageRender();
     } finally {
       if (reqId === state.latestRequestId) {
@@ -517,7 +611,7 @@
   }
 
   // =========================================================================
-  // 核心資料解析與房晚／額度計算引擎
+  // 核心解析 1：住宿日曆（陳保志）
   // =========================================================================
   function stripHtmlToLines(desc) {
     if (!desc) return [];
@@ -657,14 +751,14 @@
       const y = item.stayYear;
       if (!occupiedDatesByYear[y]) occupiedDatesByYear[y] = new Set();
 
-      let qualifyingNights = 0;
+      const qualifyingDates = [];
       const startD = parseLocalDate(item.checkIn);
       for (let i = 0; i < item.nights; i++) {
         const cur = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + i);
         const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
         if (!occupiedDatesByYear[y].has(iso)) {
           occupiedDatesByYear[y].add(iso);
-          qualifyingNights++;
+          qualifyingDates.push(iso);
         }
       }
 
@@ -697,7 +791,8 @@
 
       return {
         ...item,
-        qualifyingNights,
+        qualifyingNights: qualifyingDates.length,
+        qualifyingDates,
         employeeQuotaDisplay,
         hotelLimitDisplay,
         hotelLimitExceeded
@@ -707,19 +802,216 @@
     state.currentYearProcessed = state.allProcessedBookings.filter(b => b.stayYear === state.selectedYear);
   }
 
+  // =========================================================================
+  // 核心解析 2：【IHG活動】日曆（結轉初始值與房晚加倍活動）
+  // =========================================================================
+  function processActivityEvents(activityItems) {
+    const manualRolloverByYear = {};
+    const promoRules = [];
+
+    (activityItems || []).forEach(ev => {
+      if (!ev || !ev.start || !ev.start.date || !ev.end || !ev.end.date) return;
+
+      const title = (ev.summary || '').trim();
+      const desc = (ev.description || '').trim();
+      const startDate = ev.start.date;
+      const rawEndDate = ev.end.date;
+      const exclusiveEndDate = rawEndDate > startDate ? rawEndDate : addDaysIso(startDate, 1);
+      const displayEndDate = addDaysIso(exclusiveEndDate, -1);
+
+      // 1. 檢查是否為【會員等級結轉】xx晚
+      const rolloverMatch = title.match(ROLLOVER_TITLE_REGEX);
+      if (rolloverMatch) {
+        const year = parseInt(startDate.slice(0, 4), 10);
+        const nights = Math.max(0, parseInt(rolloverMatch[1], 10) || 0);
+        manualRolloverByYear[year] = {
+          nights,
+          title,
+          date: startDate
+        };
+        return;
+      }
+
+      // 2. 檢查是否為【IHG 洲際優悅會定向活動：xx房晚加倍】（同時相容「加被」與「無上限」）
+      let cap = null;
+      const exactPromo = title.match(PROMO_TITLE_REGEX);
+      if (exactPromo) {
+        cap = parseInt(exactPromo[1], 10);
+      } else if (PROMO_UNLIMITED_REGEX.test(title) || (/定向活動/i.test(title) && /無上限/.test(desc))) {
+        cap = Infinity;
+      } else {
+        const fallbackPromo = title.match(PROMO_FALLBACK_REGEX);
+        if (fallbackPromo) {
+          cap = parseInt(fallbackPromo[1], 10);
+        }
+      }
+
+      if (cap !== null && (cap === Infinity || cap > 0)) {
+        const countsForMilestones = !/僅會籍|不計入進階|不算進階/.test(desc);
+        promoRules.push({
+          title,
+          startDate,
+          exclusiveEndDate,
+          displayEndDate,
+          cap,
+          countsForMilestones,
+          description: desc
+        });
+      }
+    });
+
+    promoRules.sort((a, b) => a.startDate.localeCompare(b.startDate));
+    state.manualRolloverByYear = manualRolloverByYear;
+    state.promoRules = promoRules;
+  }
+
+  // =========================================================================
+  // 雙軌計算：會籍定級（含結轉＋加倍）vs 進階獎勵（不含結轉）
+  // =========================================================================
+  function getTierForNights(nights) {
+    let current = MEMBERSHIP_TIERS[0];
+    for (const tier of MEMBERSHIP_TIERS) {
+      if (nights >= tier.minNights) current = tier;
+    }
+    const idx = MEMBERSHIP_TIERS.findIndex(t => t.id === current.id);
+    const next = idx >= 0 && idx < MEMBERSHIP_TIERS.length - 1 ? MEMBERSHIP_TIERS[idx + 1] : null;
+    return { current, next };
+  }
+
+  function getActualQualifyingNightsInYear(year) {
+    return state.allProcessedBookings
+      .filter(b => b.stayYear === year)
+      .reduce((sum, b) => sum + b.qualifyingNights, 0);
+  }
+
+  function computeMembershipSummary(selectedYear) {
+    const yearStart = `${selectedYear}-01-01`;
+    const yearEndExclusive = `${selectedYear + 1}-01-01`;
+
+    // 1. 當年度實際去重疊定級日期（含入住飯店對照）
+    const yearNightEntries = [];
+    state.allProcessedBookings
+      .filter(b => b.stayYear === selectedYear)
+      .forEach(b => {
+        (b.qualifyingDates || []).forEach(iso => {
+          yearNightEntries.push({ date: iso, hotelName: b.hotelName });
+        });
+      });
+    yearNightEntries.sort((a, b) => a.date.localeCompare(b.date));
+
+    const actualQualifyingNights = yearNightEntries.length;
+
+    // 2. 計算結轉房晚（優先採【IHG活動】手動結轉，無則依前一年實住自動推算）
+    let rolloverNights = 0;
+    let rolloverSource = 'none';
+    let rolloverNote = '無結轉房晚';
+
+    if (Object.prototype.hasOwnProperty.call(state.manualRolloverByYear, selectedYear)) {
+      const manual = state.manualRolloverByYear[selectedYear];
+      rolloverNights = manual.nights;
+      rolloverSource = 'calendar';
+      rolloverNote = `來自【IHG活動】日曆（${formatDateSlash(manual.date)}）`;
+    } else {
+      const prevYear = selectedYear - 1;
+      const prevActual = getActualQualifyingNightsInYear(prevYear);
+      if (prevActual >= 70) {
+        rolloverNights = prevActual - 70;
+        rolloverSource = 'auto';
+        rolloverNote = `${prevYear} 年實住 ${prevActual} 晚（達鑽石，扣除 70 晚結轉）`;
+      } else if (prevActual >= 40) {
+        rolloverNights = prevActual - 40;
+        rolloverSource = 'auto';
+        rolloverNote = `${prevYear} 年實住 ${prevActual} 晚（達白金，扣除 40 晚結轉）`;
+      } else if (prevActual >= 20) {
+        rolloverNights = prevActual - 20;
+        rolloverSource = 'auto';
+        rolloverNote = `${prevYear} 年實住 ${prevActual} 晚（達金卡，扣除 20 晚結轉）`;
+      }
+    }
+
+    // 3. 套用與該年度重疊的定向加倍活動
+    let statusBonusNights = 0;
+    let milestoneBonusNights = 0;
+    const yearPromos = [];
+
+    state.promoRules.forEach(rule => {
+      const overlapsYear = rule.startDate < yearEndExclusive && rule.exclusiveEndDate > yearStart;
+      if (!overlapsYear) return;
+
+      const matchedEntries = [];
+      for (const entry of yearNightEntries) {
+        if (entry.date >= rule.startDate && entry.date < rule.exclusiveEndDate) {
+          if (rule.cap === Infinity || matchedEntries.length < rule.cap) {
+            matchedEntries.push(entry);
+          }
+        }
+      }
+
+      const earnedNights = matchedEntries.length;
+      const remainingCap = rule.cap === Infinity ? Infinity : Math.max(0, rule.cap - earnedNights);
+
+      statusBonusNights += earnedNights;
+      if (rule.countsForMilestones) {
+        milestoneBonusNights += earnedNights;
+      }
+
+      yearPromos.push({
+        ...rule,
+        earnedNights,
+        remainingCap,
+        matchedEntries
+      });
+    });
+
+    // 4. 雙軌加總
+    const totalStatusNights = actualQualifyingNights + statusBonusNights + rolloverNights;
+    const totalMilestoneNights = actualQualifyingNights + milestoneBonusNights;
+
+    const { current: currentTier, next: nextTier } = getTierForNights(totalStatusNights);
+    const toPlatinum = Math.max(0, 40 - totalStatusNights);
+    const toDiamond = Math.max(0, 70 - totalStatusNights);
+    const toLounge = Math.max(0, 40 - totalMilestoneNights);
+
+    const unlockedMilestones = MILESTONE_REWARDS.filter(m => totalMilestoneNights >= m.nights);
+    const nextMilestone = MILESTONE_REWARDS.find(m => totalMilestoneNights < m.nights) || null;
+
+    return {
+      selectedYear,
+      activityCalendarFound: state.activityCalendarFound,
+      actualQualifyingNights,
+      rolloverNights,
+      rolloverSource,
+      rolloverNote,
+      statusBonusNights,
+      milestoneBonusNights,
+      totalStatusNights,
+      totalMilestoneNights,
+      currentTier,
+      nextTier,
+      toPlatinum,
+      toDiamond,
+      toLounge,
+      unlockedMilestonesCount: unlockedMilestones.length,
+      nextMilestone,
+      promos: yearPromos
+    };
+  }
+
   function triggerPageRender() {
     state.currentYearProcessed = state.allProcessedBookings.filter(b => b.stayYear === state.selectedYear);
+    const membership = computeMembershipSummary(state.selectedYear);
     if (typeof state.onRender === 'function') {
       state.onRender({
         selectedYear: state.selectedYear,
         allBookings: state.allProcessedBookings,
-        yearBookings: state.currentYearProcessed
+        yearBookings: state.currentYearProcessed,
+        membership
       });
     }
   }
 
   // =========================================================================
-  // 公開 API（供各頁面呼叫）
+  // 公開 API
   // =========================================================================
   async function startApp() {
     try {
@@ -746,11 +1038,14 @@
   global.IHGApp = {
     HOTEL_ANNUAL_CAP,
     EMPLOYEE_PLANS,
+    MEMBERSHIP_TIERS,
+    MILESTONE_REWARDS,
     escapeHtml,
     formatDateSlash,
     getPlanStyle,
     detectHotelBrand,
     buildBrandLogoHtml,
+    computeMembershipSummary,
 
     init({ activePage, onRender }) {
       state.activePage = activePage || 'index';
@@ -780,7 +1075,8 @@
       return {
         selectedYear: state.selectedYear,
         allBookings: state.allProcessedBookings,
-        yearBookings: state.currentYearProcessed
+        yearBookings: state.currentYearProcessed,
+        membership: computeMembershipSummary(state.selectedYear)
       };
     }
   };
