@@ -120,7 +120,7 @@
         const style = IHGApp.getPlanStyle(b.planInfo.basePlan);
         const priceHtml = b.priceInfo.isPoints
           ? `<div class="leading-tight">
-               <div class="font-semibold text-indigo-700">${b.priceInfo.points.toLocaleString()}積分</div>
+               <div class="font-semibold text-slate-800">${b.priceInfo.points.toLocaleString()}積分</div>
                <div class="text-xs font-normal text-slate-500 mt-0.5">約${b.priceInfo.twd.toLocaleString()}元</div>
              </div>`
           : `<div class="font-semibold text-slate-800">${IHGApp.escapeHtml(b.priceInfo.display)}</div>`;
