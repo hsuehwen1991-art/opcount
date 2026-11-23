@@ -2,8 +2,16 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>各飯店總覽｜IHG 員工價住宿統計儀表板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="IHG Duo" />
+  <meta name="theme-color" content="#f3f7fc" />
+  <title>各飯店總覽｜IHG Duo</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon.png" />
+  <link rel="icon" type="image/png" href="./icon.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
@@ -40,29 +48,29 @@
 </head>
 <body class="text-slate-800 antialiased min-h-screen">
 
-  <!-- 共用頂部導覽列（由 shared.js 渲染） -->
   <div id="appHeader"></div>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+  <main class="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 sm:space-y-6" style="padding-bottom: calc(1.75rem + env(safe-area-inset-bottom, 0px));">
 
-    <!-- 共用年份與匯率控制列（由 shared.js 渲染） -->
     <div id="appControls"></div>
 
-    <!-- 各飯店年度住宿總覽 -->
+    <!-- 各飯店年度住宿總覽（電腦版表格 ／ 手機版卡片） -->
     <section class="tech-card rounded-2xl overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
+      <div class="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
         <div>
-          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
             <span class="w-1.5 h-4 rounded-full bg-cyan-500"></span>
             各飯店年度住宿總覽（<span id="hotelOverviewYear">2026</span> 日曆年）
           </h2>
           <p class="text-xs text-slate-500 mt-0.5">飯店年度限額顯示剩餘可用額度（上限 14 晚）；晚數合計以該飯店定級房晚加總計算</p>
         </div>
-        <span id="hotelCountBadge" class="font-mono-num text-xs font-semibold px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200/70">
-          共 0 間飯店
+        <span id="hotelCountBadge" class="font-mono-num text-xs font-semibold px-2.5 py-1 rounded-lg bg-cyan-50 text-cyan-700 border border-cyan-200/70">
+          0 間飯店
         </span>
       </div>
-      <div class="table-container overflow-x-auto">
+
+      <!-- 電腦版：維持原本 8 欄表格 -->
+      <div class="hidden md:block table-container overflow-x-auto">
         <table class="w-full text-sm text-left whitespace-nowrap">
           <thead class="bg-slate-50/90 text-slate-500 text-xs font-semibold border-b border-slate-200/80">
             <tr>
@@ -80,13 +88,15 @@
           <tfoot id="hotelOverviewFoot" class="bg-sky-50/60 font-bold text-slate-800 border-t border-sky-200/70"></tfoot>
         </table>
       </div>
+
+      <!-- 手機版：飯店卡片清單＋總計卡 -->
+      <div id="hotelOverviewCards" class="md:hidden p-3.5 space-y-3"></div>
     </section>
 
   </main>
 
-  <script src="shared.js"></script>
   <script>
-    function renderHotelOverviewTable(selectedYear, list) {
+    function renderHotelOverview(selectedYear, list) {
       document.getElementById('hotelOverviewYear').textContent = selectedYear;
 
       const hotelMap = {};
@@ -131,14 +141,18 @@
         return { ...h, empSum };
       }).sort((a, b) => b.qualifyingTotal - a.qualifyingTotal || b.empSum - a.empSum);
 
-      document.getElementById('hotelCountBadge').textContent = `共 ${hotels.length} 間飯店`;
+      document.getElementById('hotelCountBadge').textContent = `${hotels.length} 間飯店`;
 
       const tbody = document.getElementById('hotelOverviewBody');
+      const tfoot = document.getElementById('hotelOverviewFoot');
+      const cardsEl = document.getElementById('hotelOverviewCards');
       tbody.innerHTML = '';
+      tfoot.innerHTML = '';
+      cardsEl.innerHTML = '';
 
       if (hotels.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" class="px-5 py-12 text-center text-slate-400">該年度尚無符合條件的住宿紀錄</td></tr>`;
-        document.getElementById('hotelOverviewFoot').innerHTML = '';
+        cardsEl.innerHTML = `<div class="py-10 text-center text-sm text-slate-400">該年度尚無符合條件的住宿紀錄</div>`;
         return;
       }
 
@@ -159,6 +173,7 @@
           limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/80">${rem}晚</span>`;
         }
 
+        // 電腦版表格列
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-sky-50/40 transition-colors';
         tr.innerHTML = `
@@ -177,9 +192,51 @@
           <td class="px-4 py-3 text-right font-mono-num font-medium text-slate-600">${ratio}%</td>
         `;
         tbody.appendChild(tr);
+
+        // 手機版卡片
+        const card = document.createElement('div');
+        card.className = 'rounded-xl border border-slate-200/80 bg-white/95 p-3.5 space-y-3 shadow-2xs';
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2.5">
+            <div class="flex items-center gap-2.5 min-w-0">
+              ${IHGApp.buildBrandLogoHtml(h.hotelName, 'sm')}
+              <span class="font-bold text-sm text-slate-800 leading-snug break-words">${IHGApp.escapeHtml(h.hotelName)}</span>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="font-mono-num text-sm font-bold text-sky-700">${h.qualifyingTotal} 晚</div>
+              <div class="font-mono-num text-[11px] text-slate-500">佔比 ${ratio}%</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-4 gap-1.5 text-center">
+            <div class="rounded-lg bg-sky-50/70 border border-sky-100 py-1.5 px-1">
+              <div class="text-[10px] text-sky-700 font-medium">優享</div>
+              <div class="font-mono-num text-xs font-bold ${h.youxiang > 0 ? 'text-slate-800' : 'text-slate-300'}">${h.youxiang}</div>
+            </div>
+            <div class="rounded-lg bg-teal-50/70 border border-teal-100 py-1.5 px-1">
+              <div class="text-[10px] text-teal-700 font-medium">彈性</div>
+              <div class="font-mono-num text-xs font-bold ${h.tanxing > 0 ? 'text-slate-800' : 'text-slate-300'}">${h.tanxing}</div>
+            </div>
+            <div class="rounded-lg bg-indigo-50/70 border border-indigo-100 py-1.5 px-1">
+              <div class="text-[10px] text-indigo-700 font-medium">友人</div>
+              <div class="font-mono-num text-xs font-bold ${h.youren > 0 ? 'text-slate-800' : 'text-slate-300'}">${h.youren}</div>
+            </div>
+            <div class="rounded-lg bg-slate-50 border border-slate-200/70 py-1.5 px-1">
+              <div class="text-[10px] text-slate-500 font-medium">其他</div>
+              <div class="font-mono-num text-xs font-bold ${h.other > 0 ? 'text-slate-800' : 'text-slate-300'}">${h.other}</div>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span class="text-slate-500">飯店年度限額（剩餘）</span>
+            <span class="font-mono-num">${limitHtml}</span>
+          </div>
+        `;
+        cardsEl.appendChild(card);
       });
 
-      document.getElementById('hotelOverviewFoot').innerHTML = `
+      // 電腦版總計列
+      tfoot.innerHTML = `
         <tr>
           <td class="px-4 py-3.5 text-slate-800">總計</td>
           <td class="px-4 py-3.5 text-right font-mono-num">${grandYouxiang} 晚</td>
@@ -191,14 +248,53 @@
           <td class="px-4 py-3.5 text-right font-mono-num">100.00%</td>
         </tr>
       `;
+
+      // 手機版年度總計卡
+      const summaryCard = document.createElement('div');
+      summaryCard.className = 'rounded-xl border border-sky-200/80 bg-sky-50/70 p-3.5 space-y-2.5';
+      summaryCard.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-sm text-slate-800">${selectedYear} 年度總計</span>
+          <span class="font-mono-num text-sm font-bold text-sky-700">${grandQualifyingTotal} 晚（100%）</span>
+        </div>
+        <div class="grid grid-cols-4 gap-1.5 text-center">
+          <div class="rounded-lg bg-white/90 border border-sky-100 py-1.5 px-1">
+            <div class="text-[10px] text-slate-500">優享</div>
+            <div class="font-mono-num text-xs font-bold text-slate-800">${grandYouxiang}</div>
+          </div>
+          <div class="rounded-lg bg-white/90 border border-sky-100 py-1.5 px-1">
+            <div class="text-[10px] text-slate-500">彈性</div>
+            <div class="font-mono-num text-xs font-bold text-slate-800">${grandTanxing}</div>
+          </div>
+          <div class="rounded-lg bg-white/90 border border-sky-100 py-1.5 px-1">
+            <div class="text-[10px] text-slate-500">友人</div>
+            <div class="font-mono-num text-xs font-bold text-slate-800">${grandYouren}</div>
+          </div>
+          <div class="rounded-lg bg-white/90 border border-sky-100 py-1.5 px-1">
+            <div class="text-[10px] text-slate-500">其他</div>
+            <div class="font-mono-num text-xs font-bold text-slate-800">${grandOther}</div>
+          </div>
+        </div>
+      `;
+      cardsEl.appendChild(summaryCard);
     }
 
-    IHGApp.init({
-      activePage: 'hotels',
-      onRender({ selectedYear, yearBookings }) {
-        renderHotelOverviewTable(selectedYear, yearBookings);
-      }
-    });
+    (function loadSharedAndBoot() {
+      const s = document.createElement('script');
+      s.src = `shared.js?t=${Date.now()}`;
+      s.onload = function () {
+        IHGApp.init({
+          activePage: 'hotels',
+          onRender({ selectedYear, yearBookings }) {
+            renderHotelOverview(selectedYear, yearBookings);
+          }
+        });
+      };
+      s.onerror = function () {
+        document.body.insertAdjacentHTML('afterbegin', '<div class="p-3 text-center text-xs text-amber-800 bg-amber-50 border-b border-amber-200">shared.js 載入失敗，請確認網路連線後重新開啟。</div>');
+      };
+      document.body.appendChild(s);
+    })();
   </script>
 </body>
 </html>
