@@ -2,8 +2,16 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>數據總覽｜IHG 員工價住宿統計儀表板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="IHG Duo" />
+  <meta name="theme-color" content="#f3f7fc" />
+  <title>IHG Duo</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon.png" />
+  <link rel="icon" type="image/png" href="./icon.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -53,14 +61,14 @@
 
   <div id="appHeader"></div>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+  <main class="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 sm:space-y-6" style="padding-bottom: calc(1.75rem + env(safe-area-inset-bottom, 0px));">
 
     <div id="appControls"></div>
 
-    <!-- KPI 摘要卡片 -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <!-- 1. 最愛飯店 -->
-      <div class="tech-card tech-card-hover rounded-2xl p-5 relative overflow-hidden">
+    <!-- KPI 摘要卡片（順序：最愛飯店、定級房晚、現金支出總計、積分兌換總計） -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+      <!-- 1. 最愛飯店（含品牌 Logo） -->
+      <div class="tech-card tech-card-hover rounded-2xl p-4 sm:p-5 relative overflow-hidden">
         <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 to-teal-400"></div>
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-500 tracking-wide">最愛飯店</span>
@@ -76,7 +84,7 @@
       </div>
 
       <!-- 2. 定級房晚 -->
-      <div class="tech-card tech-card-hover rounded-2xl p-5 relative overflow-hidden">
+      <div class="tech-card tech-card-hover rounded-2xl p-4 sm:p-5 relative overflow-hidden">
         <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 to-cyan-400"></div>
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-500 tracking-wide">定級房晚</span>
@@ -92,7 +100,7 @@
       </div>
 
       <!-- 3. 現金支出總計 -->
-      <div class="tech-card tech-card-hover rounded-2xl p-5 relative overflow-hidden">
+      <div class="tech-card tech-card-hover rounded-2xl p-4 sm:p-5 relative overflow-hidden">
         <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-indigo-500"></div>
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-500 tracking-wide">現金支出總計</span>
@@ -108,7 +116,7 @@
       </div>
 
       <!-- 4. 積分兌換總計 -->
-      <div class="tech-card tech-card-hover rounded-2xl p-5 relative overflow-hidden">
+      <div class="tech-card tech-card-hover rounded-2xl p-4 sm:p-5 relative overflow-hidden">
         <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-500 tracking-wide">積分兌換總計</span>
@@ -124,294 +132,249 @@
       </div>
     </section>
 
-    <!-- 會籍與進階目標衝刺（雙軌進度卡） -->
+    <!-- 會籍與目標衝刺雙進度卡片 -->
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <!-- 左卡：會籍定級進度（白金 40 / 鑽石 70） -->
-      <div class="tech-card rounded-2xl p-5 flex flex-col justify-between gap-3.5">
-        <div class="flex items-start justify-between gap-2">
+      <!-- 左卡：會籍定級進度 -->
+      <div class="tech-card rounded-2xl p-4 sm:p-5 space-y-3 relative overflow-hidden">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-400"></div>
+        <div class="flex items-center justify-between gap-2">
           <div>
-            <div class="flex items-center gap-2">
-              <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-indigo-500 to-sky-400"></span>
-              <h2 class="text-sm sm:text-base font-bold text-slate-800">會籍定級進度（白金 40 ／ 鑽石 70）</h2>
-            </div>
-            <p id="sprintStatusBreakdown" class="text-xs text-slate-500 mt-1 pl-3.5">結轉 0 晚 ＋ 實住 0 晚 ＋ 活動加倍 0 晚</p>
+            <h2 class="text-sm sm:text-base font-bold text-slate-800">會籍定級進度（白金 40 ／ 鑽石 70）</h2>
+            <p id="idxStatusBreakdown" class="text-[11px] sm:text-xs text-slate-500 mt-0.5">結轉 0 晚 ＋ 實住 0 晚 ＋ 活動加倍 0 晚</p>
           </div>
-          <span id="sprintTierBadge" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 shrink-0">
+          <span id="idxTierBadge" class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border bg-slate-100 text-slate-600 border-slate-200 shrink-0">
             俱樂部會員
           </span>
         </div>
 
-        <div class="space-y-2">
-          <div class="flex items-baseline justify-between text-xs">
-            <span class="font-mono-num font-bold text-slate-800">
-              <span id="sprintStatusTotal" class="text-xl text-indigo-600">0</span> / 70 晚
-            </span>
-            <span id="sprintStatusGap" class="font-semibold text-slate-600">距離白金還差 40 晚 ｜ 距離鑽石還差 70 晚</span>
-          </div>
+        <div class="flex flex-wrap items-baseline justify-between gap-1 text-xs">
+          <span class="font-mono-num font-bold text-slate-800">合計 <span id="idxStatusTotal" class="text-xl text-indigo-600">0</span> 晚</span>
+          <span id="idxStatusGap" class="font-semibold text-slate-600">距白金還差 40 晚 ｜ 距鑽石還差 70 晚</span>
+        </div>
 
-          <div class="relative h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
-            <div id="barRollover" class="h-full bg-slate-400 transition-all duration-500" style="width: 0%" title="去年結轉"></div>
-            <div id="barActualStatus" class="h-full bg-sky-500 transition-all duration-500" style="width: 0%" title="今年實住"></div>
-            <div id="barBonusStatus" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%" title="活動加倍"></div>
-            <div class="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-xs" style="left: 57.14%" title="白金門檻：40 晚"></div>
-          </div>
+        <div class="relative h-2.5 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
+          <div id="idxBarRollover" class="h-full bg-slate-400 transition-all duration-500" style="width: 0%"></div>
+          <div id="idxBarActualStatus" class="h-full bg-sky-500 transition-all duration-500" style="width: 0%"></div>
+          <div id="idxBarBonusStatus" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%"></div>
+          <div class="absolute top-0 bottom-0 w-0.5 bg-white/90" style="left: 57.14%" title="白金門檻 40 晚"></div>
+        </div>
 
-          <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
-            <div class="flex items-center gap-3">
-              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-400"></span>結轉</span>
-              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500"></span>實住</span>
-              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-teal-500"></span>加倍</span>
-            </div>
-            <span class="font-mono-num">白金 40 晚 ｜ 鑽石 70 晚</span>
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-400"></span>結轉</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500"></span>實住</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-teal-500"></span>加倍</span>
           </div>
+          <span class="font-mono-num">白金 40 ｜ 鑽石 70</span>
         </div>
       </div>
 
-      <!-- 右卡：進階獎勵進度（目標 40 晚年度行政酒廊） -->
-      <div class="tech-card rounded-2xl p-5 flex flex-col justify-between gap-3.5">
-        <div class="flex items-start justify-between gap-2">
+      <!-- 右卡：進階獎勵進度 -->
+      <div class="tech-card rounded-2xl p-4 sm:p-5 space-y-3 relative overflow-hidden">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-cyan-500 to-teal-400"></div>
+        <div class="flex items-center justify-between gap-2">
           <div>
-            <div class="flex items-center gap-2">
-              <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-amber-500 to-cyan-400"></span>
-              <h2 class="text-sm sm:text-base font-bold text-slate-800">年度行政酒廊衝刺（進階獎勵 40 晚）</h2>
-            </div>
-            <p id="sprintMilestoneBreakdown" class="text-xs text-slate-500 mt-1 pl-3.5">實住 0 晚 ＋ 活動加倍 0 晚（不含去年結轉）</p>
+            <h2 class="text-sm sm:text-base font-bold text-slate-800">進階獎勵進度（40 晚年度行政酒廊）</h2>
+            <p id="idxMilestoneBreakdown" class="text-[11px] sm:text-xs text-slate-500 mt-0.5">今年實住 0 晚 ＋ 活動加倍 0 晚（不含結轉）</p>
           </div>
-          <a id="sprintMilestoneLink" data-nav-href="milestones.html" href="milestones.html" class="nav-link-item inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200/80 transition shrink-0">
-            完整獎勵 &rarr;
+          <a data-nav-href="milestones.html" href="milestones.html" class="nav-link-item inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition shrink-0">
+            獎勵明細 →
           </a>
         </div>
 
-        <div class="space-y-2">
-          <div class="flex items-baseline justify-between text-xs">
-            <span class="font-mono-num font-bold text-slate-800">
-              <span id="sprintMilestoneTotal" class="text-xl text-cyan-700">0</span> / 40 晚
-            </span>
-            <span id="sprintLoungeGap" class="font-semibold text-amber-700">距離年度行政酒廊還差 40 晚</span>
-          </div>
+        <div class="flex flex-wrap items-baseline justify-between gap-1 text-xs">
+          <span class="font-mono-num font-bold text-slate-800">合計 <span id="idxMilestoneTotal" class="text-xl text-cyan-700">0</span> 晚</span>
+          <span id="idxLoungeGap" class="font-semibold text-amber-700">距離 40 晚年度行政酒廊還差 40 晚</span>
+        </div>
 
-          <div class="relative h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
-            <div id="barActualMilestone" class="h-full bg-gradient-to-r from-sky-500 to-cyan-500 transition-all duration-500" style="width: 0%" title="今年實住"></div>
-            <div id="barBonusMilestone" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%" title="活動加倍"></div>
-            <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 50%" title="20 晚里程碑"></div>
-            <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 75%" title="30 晚里程碑"></div>
-          </div>
+        <div class="relative h-2.5 rounded-full bg-slate-100 overflow-hidden border border-slate-200/70 flex">
+          <div id="idxBarActualMilestone" class="h-full bg-gradient-to-r from-sky-500 to-cyan-500 transition-all duration-500" style="width: 0%"></div>
+          <div id="idxBarBonusMilestone" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%"></div>
+          <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 50%" title="20 晚"></div>
+          <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" style="left: 75%" title="30 晚"></div>
+        </div>
 
-          <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
-            <span id="sprintNextMilestone">下一里程碑：20 晚（尚差 20 晚）</span>
-            <span class="font-mono-num">20 晚 ｜ 30 晚 ｜ 40 晚酒廊</span>
-          </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+          <span id="idxNextMilestone">下一里程碑：20 晚（尚差 20 晚）</span>
+          <span class="font-mono-num">20 ｜ 30 ｜ 40 酒廊</span>
         </div>
       </div>
     </section>
 
-    <!-- 圖表區塊 -->
-    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <div class="tech-card rounded-2xl p-5 lg:col-span-7">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-          <div>
-            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-              <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-sky-500 to-cyan-400"></span>
-              各月份房晚與現金支出分佈
-            </h2>
-            <p class="text-[11px] text-slate-400 mt-0.5 pl-3.5">預設僅顯示房晚數；點擊右上角圖例可切換顯示現金支出曲線</p>
-          </div>
-          <span class="text-[11px] font-mono-num text-slate-400">MONTHLY TREND</span>
+    <!-- 圖表區塊（電腦版 7:5 比例） -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+      <div class="tech-card rounded-2xl p-4 sm:p-5 lg:col-span-7">
+        <div class="flex items-center justify-between mb-3 sm:mb-4">
+          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-sky-500 to-cyan-400"></span>
+            各月份房晚與現金支出分佈
+          </h2>
+          <span class="text-[10px] sm:text-[11px] font-mono-num text-slate-400">MONTHLY TREND</span>
         </div>
-        <div class="h-72">
+        <div class="h-60 sm:h-64">
           <canvas id="monthlyChart"></canvas>
         </div>
       </div>
 
-      <div class="tech-card rounded-2xl p-5 lg:col-span-5">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-              <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-indigo-500 to-sky-400"></span>
-              價格方案晚數佔比
-            </h2>
-            <p class="text-[11px] text-slate-400 mt-0.5 pl-3.5">依方案總入住房晚佔比標示</p>
-          </div>
-          <span class="text-[11px] font-mono-num text-slate-400">RATE MIX %</span>
+      <div class="tech-card rounded-2xl p-4 sm:p-5 lg:col-span-5">
+        <div class="flex items-center justify-between mb-3 sm:mb-4">
+          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-gradient-to-b from-indigo-500 to-sky-400"></span>
+            價格方案晚數佔比
+          </h2>
+          <span class="text-[10px] sm:text-[11px] font-mono-num text-slate-400">RATE MIX</span>
         </div>
-        <div class="h-72 flex items-center justify-center">
+        <div class="h-64 sm:h-64 flex items-center justify-center">
           <canvas id="planChart"></canvas>
         </div>
       </div>
     </section>
 
-    <!-- 表格 1：員工價方案額度總覽 -->
+    <!-- 員工價方案額度總覽（電腦版表格 ／ 手機版卡片） -->
     <section class="tech-card rounded-2xl overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
+      <div class="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
         <div>
-          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
             <span class="w-1.5 h-4 rounded-full bg-sky-500"></span>
             員工價方案額度總覽
           </h2>
           <p class="text-xs text-slate-500 mt-0.5">分別計算跨年度額度池</p>
         </div>
       </div>
-      <div class="table-container overflow-x-auto">
+
+      <!-- 電腦版：維持原本 6 欄表格 -->
+      <div class="hidden md:block table-container overflow-x-auto">
         <table class="w-full text-sm text-left">
           <thead class="bg-slate-50/90 text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-200/80">
             <tr>
               <th class="px-5 py-3">價格方案</th>
-              <th id="thPrevUsed" class="px-5 py-3 text-right">已使用晚數</th>
-              <th id="thPrevRem" class="px-5 py-3 text-right">剩餘可用晚數</th>
-              <th id="thCurrUsed" class="px-5 py-3 text-right">已使用晚數</th>
-              <th id="thCurrRem" class="px-5 py-3 text-right">剩餘可用晚數</th>
+              <th id="thPrevUsed" class="px-5 py-3 text-right">2025已使用晚數</th>
+              <th id="thPrevRem" class="px-5 py-3 text-right">2025剩餘可用晚數</th>
+              <th id="thCurrUsed" class="px-5 py-3 text-right">2026已使用晚數</th>
+              <th id="thCurrRem" class="px-5 py-3 text-right">2026剩餘可用晚數</th>
               <th class="px-5 py-3 text-right">年度額度上限</th>
             </tr>
           </thead>
           <tbody id="quotaOverviewBody" class="divide-y divide-slate-100"></tbody>
         </table>
       </div>
+
+      <!-- 手機版：3 張精簡額度卡片 -->
+      <div id="quotaOverviewCards" class="md:hidden p-3.5 space-y-3"></div>
     </section>
 
   </main>
 
-  <script src="shared.js"></script>
   <script>
     let monthlyChartInstance = null;
     let planChartInstance = null;
 
+    function shortenPlanLabel(name) {
+      return String(name || '')
+        .replace(/^IHG One Pass\s*/i, '')
+        .replace('大使免費週末住宿', '大使週末');
+    }
+
+    // 圓餅圖外拉指示線＋百分比標註插件（內建防重疊演算法）
     const doughnutCalloutPlugin = {
-      id: 'doughnutCalloutPlugin',
+      id: 'doughnutCalloutLabels',
       afterDatasetsDraw(chart) {
-        const { ctx, data, width, height } = chart;
-        const dataset = data.datasets[0];
-        if (!dataset || !dataset.data) return;
-
         const meta = chart.getDatasetMeta(0);
-        if (!meta || !meta.data || meta.data.length === 0) return;
+        const dataset = chart.data.datasets[0];
+        if (!meta || !meta.data || !dataset || !dataset.data) return;
 
-        if (dataset._isEmpty) {
-          const arc0 = meta.data[0];
-          ctx.save();
-          ctx.font = '600 12px "Noto Sans TC", "Inter", sans-serif';
-          ctx.fillStyle = '#94a3b8';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('尚無資料', arc0.x, arc0.y);
-          ctx.restore();
-          return;
-        }
+        const labels = chart.data.labels || [];
+        if (labels.length === 1 && labels[0] === '尚無資料') return;
 
-        const total = dataset.data.reduce((sum, val) => sum + (Number(val) || 0), 0);
+        const values = dataset.data;
+        const total = values.reduce((sum, v) => sum + v, 0);
         if (total <= 0) return;
+
+        const { ctx, chartArea } = chart;
+        const isCompact = chart.width < 340;
+        const fontSize = isCompact ? 10 : 11;
+        const lineHeight = fontSize + 6;
+        const radialOffset = isCompact ? 10 : 14;
+        const horizontalLen = isCompact ? 10 : 16;
 
         const leftItems = [];
         const rightItems = [];
 
-        meta.data.forEach((arc, idx) => {
-          const val = Number(dataset.data[idx]) || 0;
-          if (val <= 0) return;
-
-          const midAngle = (arc.startAngle + arc.endAngle) / 2;
-          const cos = Math.cos(midAngle);
-          const sin = Math.sin(midAngle);
-          const isRight = cos >= 0;
-          const pct = ((val / total) * 100).toFixed(1);
-          const rawLabel = (data.labels && data.labels[idx]) ? String(data.labels[idx]) : '';
-          const color = Array.isArray(dataset.backgroundColor)
-            ? dataset.backgroundColor[idx]
-            : '#0284c7';
-
+        meta.data.forEach((arc, i) => {
+          const val = values[i];
+          if (!val || val <= 0) return;
+          const angle = (arc.startAngle + arc.endAngle) / 2;
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          const x1 = arc.x + cos * arc.outerRadius;
+          const y1 = arc.y + sin * arc.outerRadius;
+          const x2 = arc.x + cos * (arc.outerRadius + radialOffset);
+          const y2 = arc.y + sin * (arc.outerRadius + radialOffset);
+          const pct = ((val / total) * 100).toFixed(1) + '%';
+          const shortName = shortenPlanLabel(labels[i]);
           const item = {
-            cx: arc.x,
-            cy: arc.y,
-            outerRadius: arc.outerRadius,
-            midAngle,
-            cos,
-            sin,
-            isRight,
-            label: rawLabel,
-            pctText: `${pct}%`,
-            color,
-            y: arc.y + sin * (arc.outerRadius + 14)
+            x1, y1, x2, y2,
+            yLabel: y2,
+            color: Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[i] : '#0284c7',
+            text: `${shortName} ${pct}`
           };
-
-          if (isRight) {
-            rightItems.push(item);
-          } else {
-            leftItems.push(item);
-          }
+          if (cos >= 0) rightItems.push(item);
+          else leftItems.push(item);
         });
 
-        const minGap = 32;
-        const topBound = 18;
-        const bottomBound = height - 18;
-
-        function resolveCollisions(items) {
-          if (items.length === 0) return;
-          items.sort((a, b) => a.y - b.y);
-
-          for (let i = 0; i < items.length; i++) {
-            if (i === 0) {
-              items[i].y = Math.max(topBound, items[i].y);
-            } else {
-              items[i].y = Math.max(items[i].y, items[i - 1].y + minGap);
+        const resolveCollisions = (items) => {
+          items.sort((a, b) => a.yLabel - b.yLabel);
+          for (let i = 1; i < items.length; i++) {
+            if (items[i].yLabel - items[i - 1].yLabel < lineHeight) {
+              items[i].yLabel = items[i - 1].yLabel + lineHeight;
             }
           }
-
-          if (items[items.length - 1].y > bottomBound) {
-            items[items.length - 1].y = bottomBound;
+          const maxY = chartArea.bottom - 6;
+          if (items.length > 0 && items[items.length - 1].yLabel > maxY) {
+            items[items.length - 1].yLabel = maxY;
             for (let i = items.length - 2; i >= 0; i--) {
-              items[i].y = Math.min(items[i].y, items[i + 1].y - minGap);
-            }
-            if (items[0].y < topBound) {
-              items[0].y = topBound;
+              if (items[i + 1].yLabel - items[i].yLabel < lineHeight) {
+                items[i].yLabel = items[i + 1].yLabel - lineHeight;
+              }
             }
           }
-        }
+          const minY = chartArea.top + 8;
+          if (items.length > 0 && items[0].yLabel < minY) {
+            items[0].yLabel = minY;
+          }
+        };
 
         resolveCollisions(rightItems);
         resolveCollisions(leftItems);
 
-        const allItems = rightItems.concat(leftItems);
-
         ctx.save();
-        allItems.forEach(item => {
-          const p0x = item.cx + item.cos * (item.outerRadius + 2);
-          const p0y = item.cy + item.sin * (item.outerRadius + 2);
-          const p1x = item.cx + item.cos * (item.outerRadius + 11);
-          const p1y = item.cy + item.sin * (item.outerRadius + 11);
+        ctx.font = `600 ${fontSize}px "Inter", "Noto Sans TC", sans-serif`;
+        ctx.textBaseline = 'middle';
 
-          const kneeX = item.isRight
-            ? Math.max(p1x + 5, item.cx + item.outerRadius + 14)
-            : Math.min(p1x - 5, item.cx - item.outerRadius - 14);
-          const endX = item.isRight ? kneeX + 8 : kneeX - 8;
+        const drawGroup = (items, isRight) => {
+          items.forEach(item => {
+            const x3 = isRight ? item.x2 + horizontalLen : item.x2 - horizontalLen;
+            ctx.beginPath();
+            ctx.moveTo(item.x1, item.y1);
+            ctx.lineTo(item.x2, item.yLabel);
+            ctx.lineTo(x3, item.yLabel);
+            ctx.strokeStyle = item.color;
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
 
-          ctx.beginPath();
-          ctx.moveTo(p0x, p0y);
-          ctx.lineTo(p1x, p1y);
-          ctx.lineTo(kneeX, item.y);
-          ctx.lineTo(endX, item.y);
-          ctx.strokeStyle = item.color;
-          ctx.lineWidth = 1.4;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(item.x1, item.y1, 2.2, 0, Math.PI * 2);
+            ctx.fillStyle = item.color;
+            ctx.fill();
 
-          ctx.beginPath();
-          ctx.arc(endX, item.y, 2.4, 0, Math.PI * 2);
-          ctx.fillStyle = item.color;
-          ctx.fill();
+            ctx.fillStyle = '#334155';
+            ctx.textAlign = isRight ? 'left' : 'right';
+            ctx.fillText(item.text, isRight ? x3 + 4 : x3 - 4, item.yLabel);
+          });
+        };
 
-          const textX = item.isRight ? endX + 6 : endX - 6;
-          const maxTextW = Math.max(56, item.isRight ? (width - textX - 4) : (textX - 4));
-
-          ctx.textAlign = item.isRight ? 'left' : 'right';
-          ctx.textBaseline = 'middle';
-
-          ctx.font = '600 11px "Noto Sans TC", "Inter", sans-serif';
-          ctx.fillStyle = '#334155';
-          ctx.fillText(item.label, textX, item.y - 6.5, maxTextW);
-
-          ctx.font = '700 11px "JetBrains Mono", "Inter", sans-serif';
-          ctx.fillStyle = item.color;
-          ctx.fillText(item.pctText, textX, item.y + 7.5, maxTextW);
-        });
+        drawGroup(rightItems, true);
+        drawGroup(leftItems, false);
         ctx.restore();
       }
     };
@@ -493,66 +456,60 @@
       document.getElementById('kpiPointsValue').textContent = `約折合台幣 NT$ ${pointsTwd.toLocaleString()}`;
     }
 
-    function renderSprintCards(m) {
-      document.getElementById('sprintStatusBreakdown').textContent =
-        `結轉 ${m.rolloverNights} 晚 ＋ 實住 ${m.actualQualifyingNights} 晚 ＋ 活動加倍 ${m.statusBonusNights} 晚`;
+    function renderMembershipSummary(m) {
+      if (!m) return;
 
-      const tierBadge = document.getElementById('sprintTierBadge');
-      tierBadge.className = `inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${m.currentTier.badgeCls}`;
+      const tierBadge = document.getElementById('idxTierBadge');
+      tierBadge.className = `inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border shrink-0 ${m.currentTier.badgeCls}`;
       tierBadge.textContent = m.currentTier.name;
 
-      document.getElementById('sprintStatusTotal').textContent = m.totalStatusNights;
+      document.getElementById('idxStatusBreakdown').textContent =
+        `結轉 ${m.rolloverNights} 晚 ＋ 實住 ${m.actualQualifyingNights} 晚 ＋ 活動加倍 ${m.statusBonusNights} 晚`;
+      document.getElementById('idxStatusTotal').textContent = m.totalStatusNights;
 
-      let statusGapText;
+      let gapText;
       if (m.toDiamond === 0) {
-        statusGapText = '已達成鑽石精英會籍！';
+        gapText = '已達成鑽石精英會籍！';
       } else if (m.toPlatinum === 0) {
-        statusGapText = `已達白金 ｜ 距離鑽石還差 ${m.toDiamond} 晚`;
+        gapText = `已達白金 ｜ 距鑽石還差 ${m.toDiamond} 晚`;
       } else {
-        statusGapText = `距白金還差 ${m.toPlatinum} 晚 ｜ 距鑽石還差 ${m.toDiamond} 晚`;
+        gapText = `距白金還差 ${m.toPlatinum} 晚 ｜ 距鑽石還差 ${m.toDiamond} 晚`;
       }
-      document.getElementById('sprintStatusGap').textContent = statusGapText;
+      document.getElementById('idxStatusGap').textContent = gapText;
 
       const statusCap = Math.max(70, m.totalStatusNights);
       const rollPct = Math.min(100, (m.rolloverNights / statusCap) * 100);
       const actPct = Math.min(100 - rollPct, (m.actualQualifyingNights / statusCap) * 100);
       const bonPct = Math.min(100 - rollPct - actPct, (m.statusBonusNights / statusCap) * 100);
+      document.getElementById('idxBarRollover').style.width = `${rollPct.toFixed(2)}%`;
+      document.getElementById('idxBarActualStatus').style.width = `${actPct.toFixed(2)}%`;
+      document.getElementById('idxBarBonusStatus').style.width = `${bonPct.toFixed(2)}%`;
 
-      document.getElementById('barRollover').style.width = `${rollPct.toFixed(2)}%`;
-      document.getElementById('barActualStatus').style.width = `${actPct.toFixed(2)}%`;
-      document.getElementById('barBonusStatus').style.width = `${bonPct.toFixed(2)}%`;
+      document.getElementById('idxMilestoneBreakdown').textContent =
+        `今年實住 ${m.actualQualifyingNights} 晚 ＋ 活動加倍 ${m.milestoneBonusNights} 晚（不含結轉）`;
+      document.getElementById('idxMilestoneTotal').textContent = m.totalMilestoneNights;
 
-      document.getElementById('sprintMilestoneBreakdown').textContent =
-        `實住 ${m.actualQualifyingNights} 晚 ＋ 活動加倍 ${m.milestoneBonusNights} 晚（不含去年結轉）`;
-      document.getElementById('sprintMilestoneTotal').textContent = m.totalMilestoneNights;
-
-      const loungeGapEl = document.getElementById('sprintLoungeGap');
+      const loungeGapEl = document.getElementById('idxLoungeGap');
       if (m.toLounge === 0) {
-        loungeGapEl.textContent = '已解鎖 40 晚年度行政酒廊！';
+        loungeGapEl.textContent = '已達成 40 晚年度行政酒廊資格！';
         loungeGapEl.className = 'font-semibold text-emerald-600';
       } else {
-        loungeGapEl.textContent = `距離年度行政酒廊還差 ${m.toLounge} 晚`;
+        loungeGapEl.textContent = `距離 40 晚年度行政酒廊還差 ${m.toLounge} 晚`;
         loungeGapEl.className = 'font-semibold text-amber-700';
       }
 
       const loungeActPct = Math.min(100, (m.actualQualifyingNights / 40) * 100);
       const loungeBonPct = Math.min(100 - loungeActPct, (m.milestoneBonusNights / 40) * 100);
-      document.getElementById('barActualMilestone').style.width = `${loungeActPct.toFixed(2)}%`;
-      document.getElementById('barBonusMilestone').style.width = `${loungeBonPct.toFixed(2)}%`;
+      document.getElementById('idxBarActualMilestone').style.width = `${loungeActPct.toFixed(2)}%`;
+      document.getElementById('idxBarBonusMilestone').style.width = `${loungeBonPct.toFixed(2)}%`;
 
-      const nextEl = document.getElementById('sprintNextMilestone');
-      if (m.nextMilestone) {
-        const diff = m.nextMilestone.nights - m.totalMilestoneNights;
-        nextEl.textContent = `下一里程碑：${m.nextMilestone.nights} 晚（尚差 ${diff} 晚）`;
-      } else {
-        nextEl.textContent = '已解鎖全數 70 晚進階獎勵里程碑';
-      }
-
-      const linkEl = document.getElementById('sprintMilestoneLink');
-      if (linkEl) linkEl.href = `milestones.html?year=${m.selectedYear}`;
+      const nextEl = document.getElementById('idxNextMilestone');
+      nextEl.textContent = m.nextMilestone
+        ? `下一里程碑：${m.nextMilestone.nights} 晚（尚差 ${m.nextMilestone.nights - m.totalMilestoneNights} 晚）`
+        : '已解鎖全數 70 晚進階獎勵里程碑';
     }
 
-    function renderQuotaOverviewTable(selectedYear, allBookings) {
+    function renderQuotaOverview(selectedYear, allBookings) {
       const prevYear = selectedYear - 1;
       document.getElementById('thPrevUsed').textContent = `${prevYear}已使用晚數`;
       document.getElementById('thPrevRem').textContent = `${prevYear}剩餘可用晚數`;
@@ -567,7 +524,9 @@
       });
 
       const tbody = document.getElementById('quotaOverviewBody');
+      const cardsEl = document.getElementById('quotaOverviewCards');
       tbody.innerHTML = '';
+      cardsEl.innerHTML = '';
 
       Object.entries(IHGApp.EMPLOYEE_PLANS).forEach(([planName, cfg]) => {
         const prevUsed = usage[`${prevYear}_${planName}`] || 0;
@@ -579,6 +538,7 @@
         const currRemText = isUnlimited ? '不限' : `${Math.max(0, cfg.limit - currUsed)} 晚`;
         const capText = isUnlimited ? '不限' : `${cfg.limit} 晚`;
 
+        // 電腦版表格列
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-sky-50/40 transition-colors';
         tr.innerHTML = `
@@ -595,6 +555,38 @@
           <td class="px-5 py-3.5 text-right font-mono-num text-slate-500">${capText}</td>
         `;
         tbody.appendChild(tr);
+
+        // 手機版額度卡片
+        const card = document.createElement('div');
+        card.className = 'rounded-xl border border-slate-200/80 bg-white/90 p-3.5 space-y-2.5 shadow-2xs';
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <span class="inline-flex items-center gap-2 font-bold text-sm text-slate-800">
+              <span class="w-2.5 h-2.5 rounded-full ${style.dot}"></span>
+              ${IHGApp.escapeHtml(planName)}
+            </span>
+            <span class="font-mono-num text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/80">
+              上限 ${capText}
+            </span>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="rounded-lg bg-slate-50/90 border border-slate-200/70 p-2.5">
+              <div class="text-[11px] font-semibold text-slate-400">${prevYear} 年度額度</div>
+              <div class="mt-1 flex items-baseline justify-between text-xs">
+                <span class="text-slate-500">已用 <strong class="font-mono-num text-slate-800">${prevUsed}</strong></span>
+                <span class="font-mono-num font-bold ${isUnlimited ? 'text-slate-400' : 'text-teal-600'}">剩 ${prevRemText}</span>
+              </div>
+            </div>
+            <div class="rounded-lg bg-sky-50/60 border border-sky-200/60 p-2.5">
+              <div class="text-[11px] font-semibold text-sky-600">${selectedYear} 年度額度</div>
+              <div class="mt-1 flex items-baseline justify-between text-xs">
+                <span class="text-slate-500">已用 <strong class="font-mono-num text-slate-800">${currUsed}</strong></span>
+                <span class="font-mono-num font-bold ${isUnlimited ? 'text-slate-400' : 'text-teal-600'}">剩 ${currRemText}</span>
+              </div>
+            </div>
+          </div>
+        `;
+        cardsEl.appendChild(card);
       });
     }
 
@@ -618,7 +610,7 @@
       });
 
       const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-      const barGrad = monthlyCtx.createLinearGradient(0, 0, 0, 280);
+      const barGrad = monthlyCtx.createLinearGradient(0, 0, 0, 260);
       barGrad.addColorStop(0, 'rgba(6, 182, 212, 0.88)');
       barGrad.addColorStop(1, 'rgba(2, 132, 199, 0.65)');
 
@@ -664,8 +656,6 @@
             legend: {
               position: 'top',
               align: 'end',
-              onHover: (e) => { if (e && e.native && e.native.target) e.native.target.style.cursor = 'pointer'; },
-              onLeave: (e) => { if (e && e.native && e.native.target) e.native.target.style.cursor = 'default'; },
               labels: { boxWidth: 10, usePointStyle: true, color: '#475569', font: { size: 11 } }
             }
           },
@@ -685,83 +675,74 @@
               beginAtZero: true,
               position: 'right',
               grid: { drawOnChartArea: false },
-              ticks: {
-                color: '#6366f1',
-                font: { size: 11 },
-                callback: (val) => `NT$ ${Number(val).toLocaleString()}`
-              }
+              ticks: { color: '#6366f1', font: { size: 11 } }
             }
           }
         }
       });
 
-      const planCanvas = document.getElementById('planChart');
-      const containerWidth = (planCanvas.parentElement && planCanvas.parentElement.clientWidth) || 420;
-      const sidePadding = Math.max(92, Math.min(142, Math.round(containerWidth * 0.31)));
-
       const planLabels = Object.keys(planCounts);
       const planValues = Object.values(planCounts);
-      const hasData = planValues.length > 0 && planValues.some(v => v > 0);
-      const totalPlanNights = planValues.reduce((sum, v) => sum + v, 0);
       const planColors = planLabels.map(name => IHGApp.getPlanStyle(name).chartColor);
+      const totalPlanNights = planValues.reduce((sum, v) => sum + v, 0);
 
       if (planChartInstance) planChartInstance.destroy();
-      planChartInstance = new Chart(planCanvas, {
+      planChartInstance = new Chart(document.getElementById('planChart'), {
         type: 'doughnut',
-        plugins: [doughnutCalloutPlugin],
         data: {
-          labels: hasData ? planLabels : ['尚無資料'],
+          labels: planLabels.length ? planLabels : ['尚無資料'],
           datasets: [{
-            data: hasData ? planValues : [1],
-            backgroundColor: hasData ? planColors : ['#e2e8f0'],
+            data: planValues.length ? planValues : [1],
+            backgroundColor: planValues.length ? planColors : ['#e2e8f0'],
             borderColor: '#ffffff',
             borderWidth: 2,
-            hoverOffset: 6,
-            _isEmpty: !hasData
+            hoverOffset: 6
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          cutout: '56%',
+          cutout: '58%',
           layout: {
-            padding: {
-              top: 30,
-              bottom: 30,
-              left: sidePadding,
-              right: sidePadding
-            }
+            padding: { top: 20, bottom: 20, left: 78, right: 78 }
           },
           plugins: {
-            legend: {
-              display: false
-            },
+            legend: { display: false },
             tooltip: {
               callbacks: {
-                label(context) {
-                  if (context.dataset._isEmpty) return ' 尚無資料';
-                  const idx = context.dataIndex;
-                  const rawName = planLabels[idx] || context.label;
-                  const val = context.parsed || 0;
-                  const pct = totalPlanNights > 0 ? ((val / totalPlanNights) * 100).toFixed(1) : '0.0';
-                  return ` ${rawName}：${val} 晚 (${pct}%)`;
+                label(ctx) {
+                  if (!planLabels.length || totalPlanNights === 0) return ' 尚無資料';
+                  const v = ctx.raw || 0;
+                  const pct = ((v / totalPlanNights) * 100).toFixed(1);
+                  return ` ${ctx.label}：${v} 晚（${pct}%）`;
                 }
               }
             }
           }
-        }
+        },
+        plugins: [doughnutCalloutPlugin]
       });
     }
 
-    IHGApp.init({
-      activePage: 'index',
-      onRender({ selectedYear, allBookings, yearBookings, membership }) {
-        renderKPIs(yearBookings);
-        renderSprintCards(membership);
-        renderQuotaOverviewTable(selectedYear, allBookings);
-        renderCharts(yearBookings);
-      }
-    });
+    (function loadSharedAndBoot() {
+      const s = document.createElement('script');
+      s.src = `shared.js?t=${Date.now()}`;
+      s.onload = function () {
+        IHGApp.init({
+          activePage: 'index',
+          onRender({ selectedYear, allBookings, yearBookings, membership }) {
+            renderKPIs(yearBookings);
+            renderMembershipSummary(membership);
+            renderQuotaOverview(selectedYear, allBookings);
+            renderCharts(yearBookings);
+          }
+        });
+      };
+      s.onerror = function () {
+        document.body.insertAdjacentHTML('afterbegin', '<div class="p-3 text-center text-xs text-amber-800 bg-amber-50 border-b border-amber-200">shared.js 載入失敗，請確認網路連線後重新開啟。</div>');
+      };
+      document.body.appendChild(s);
+    })();
   </script>
 </body>
 </html>
