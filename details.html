@@ -2,8 +2,16 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>住宿明細｜IHG 員工價住宿統計儀表板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="IHG Duo" />
+  <meta name="theme-color" content="#f3f7fc" />
+  <title>住宿明細｜IHG Duo</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon.png" />
+  <link rel="icon" type="image/png" href="./icon.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
@@ -32,22 +40,6 @@
       box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(14, 165, 233, 0.04);
     }
 
-    .sortable-th {
-      cursor: pointer;
-      user-select: none;
-      transition: background-color 0.15s ease, color 0.15s ease;
-    }
-
-    .sortable-th:hover {
-      background-color: rgba(224, 242, 254, 0.55);
-      color: #0369a1;
-    }
-
-    .sortable-th.is-sorted {
-      color: #0284c7;
-      background-color: rgba(240, 249, 255, 0.9);
-    }
-
     .table-container::-webkit-scrollbar { height: 7px; }
     .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 9999px; }
     .table-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; }
@@ -58,22 +50,19 @@
 
   <div id="appHeader"></div>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+  <main class="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 sm:space-y-6" style="padding-bottom: calc(1.75rem + env(safe-area-inset-bottom, 0px));">
 
     <div id="appControls"></div>
 
-    <!-- 住宿明細清單 -->
+    <!-- 住宿明細清單（電腦版可排序表格 ／ 手機版卡片＋排序選單） -->
     <section class="tech-card rounded-2xl overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+      <div class="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
         <div>
-          <div class="flex flex-wrap items-center gap-2">
-            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-              <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
-              住宿明細清單
-            </h2>
-            <span class="text-[11px] text-slate-400">（點擊表頭可切換升／降冪排序）</span>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
+          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
+            住宿明細清單
+          </h2>
+          <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2 text-[11px]">
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>優享價</span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200"><span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>彈性價</span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>友人價</span>
@@ -82,134 +71,151 @@
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>其他方案</span>
           </div>
         </div>
-        <div class="flex items-center gap-2.5">
-          <span id="detailCountBadge" class="font-mono-num text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200/70">
-            0 筆
-          </span>
-          <div class="relative">
-            <input type="text" id="searchInput" oninput="renderDetailTable()" placeholder="搜尋飯店或價格方案..." class="rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none transition w-48 sm:w-60" />
-            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+
+        <div class="w-full md:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div class="flex items-center gap-2">
+            <span id="detailCountBadge" class="font-mono-num text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200/70 shrink-0">
+              0 筆
+            </span>
+            <div class="relative flex-1 sm:flex-initial">
+              <input type="text" id="searchInput" oninput="renderDetailView()" placeholder="搜尋飯店或價格方案..." class="rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none transition w-full sm:w-56" />
+              <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+          </div>
+
+          <!-- 僅手機版顯示的排序選單與升降冪切換 -->
+          <div class="md:hidden flex items-center gap-2">
+            <select id="mobileSortSelect" onchange="onMobileSortKeyChange()" class="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none">
+              <option value="checkIn">排序：入住日</option>
+              <option value="checkOut">排序：退房日</option>
+              <option value="hotelName">排序：飯店名稱</option>
+              <option value="qualifyingNights">排序：定級房晚</option>
+              <option value="plan">排序：價格方案</option>
+              <option value="employeeQuota">排序：員工價額度</option>
+              <option value="hotelLimit">排序：飯店年度限額</option>
+              <option value="price">排序：價格</option>
+            </select>
+            <button id="mobileSortDirBtn" type="button" onclick="toggleMobileSortDir()" class="px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 text-sky-700 text-xs font-semibold whitespace-nowrap active:scale-[0.98] transition">
+              升冪 ▲
+            </button>
           </div>
         </div>
       </div>
-      <div class="table-container overflow-x-auto">
+
+      <!-- 電腦版：維持原本 8 欄表頭可排序表格 -->
+      <div class="hidden md:block table-container overflow-x-auto">
         <table class="w-full text-sm text-left whitespace-nowrap">
-          <thead class="bg-slate-50/90 text-slate-500 text-xs font-semibold border-b border-slate-200/80">
+          <thead id="detailTableHead" class="bg-slate-50/90 text-slate-500 text-xs font-semibold border-b border-slate-200/80 select-none">
             <tr>
-              <th data-sort-key="hotelName" onclick="toggleSort('hotelName')" class="sortable-th px-4 py-3 min-w-[180px] max-w-[240px]">
-                <div class="inline-flex items-center gap-1.5">
-                  <span>飯店名稱</span>
-                  <span class="sort-icon inline-flex flex-col leading-none"></span>
-                </div>
+              <th data-sort-key="hotelName" onclick="toggleSort('hotelName')" class="px-4 py-3 cursor-pointer hover:text-sky-700 transition">
+                <span class="inline-flex items-center gap-1">飯店名稱 <span class="sort-indicator"></span></span>
               </th>
-              <th data-sort-key="checkIn" onclick="toggleSort('checkIn')" class="sortable-th px-4 py-3">
-                <div class="inline-flex items-center gap-1.5">
-                  <span>入住日</span>
-                  <span class="sort-icon inline-flex flex-col leading-none"></span>
-                </div>
+              <th data-sort-key="checkIn" onclick="toggleSort('checkIn')" class="px-4 py-3 cursor-pointer hover:text-sky-700 transition">
+                <span class="inline-flex items-center gap-1">入住日 <span class="sort-indicator"></span></span>
               </th>
-              <th data-sort-key="checkOut" onclick="toggleSort('checkOut')" class="sortable-th px-4 py-3">
-                <div class="inline-flex items-center gap-1.5">
-                  <span>退房日</span>
-                  <span class="sort-icon inline-flex flex-col leading-none"></span>
-                </div>
+              <th data-sort-key="checkOut" onclick="toggleSort('checkOut')" class="px-4 py-3 cursor-pointer hover:text-sky-700 transition">
+                <span class="inline-flex items-center gap-1">退房日 <span class="sort-indicator"></span></span>
               </th>
-              <th data-sort-key="qualifyingNights" onclick="toggleSort('qualifyingNights')" class="sortable-th px-4 py-3 text-center">
-                <div class="inline-flex items-center justify-center gap-1.5">
-                  <span>定級房晚</span>
-                  <span class="sort-icon inline-flex flex-col leading-none"></span>
-                </div>
+              <th data-sort-key="qualifyingNights" onclick="toggleSort('qualifyingNights')" class="px-4 py-3 text-center cursor-pointer hover:text-sky-700 transition">
+                <span class="inline-flex items-center justify-center gap-1">定級房晚 <span class="sort-indicator"></span></span>
               </th>
-              <th data-sort-key="plan" onclick="toggleSort('plan')" class="sortable-th px-4 py-3">
-                <div class="inline-flex items-center gap-1.5">
-                  <span>價格方案</span>
-                  <span class="sort-icon inline-flex flex-col leading-none"></span>
-                </div>
+              <th data-sort-key="plan" onclick="toggleSort('plan')" class="px-4 py-3 cursor-pointer hover:text-sky-700 transition">
+                <span class="inline-flex items-center gap-1">價格方案 <span class="sort-indicator"></span></span>
               </th>
-              <th data-sort-key="employeeQuota" onclick="toggleSort('employeeQuota')" class="sortable-th px-4 py-3">
-                <div class="inline-flex items-center gap-1.5">
-                  <span>員工價額度房晚</span>
-                  <span class="sort-icon inline-flex flex-col leading-none"></span>
-                </div>
+              <th data-sort-key="employeeQuota" onclick="toggleSort('employeeQuota')" class="px-4 py-3 cursor-pointer hover:text-sky-700 transition">
+                <span class="inline-flex items-center gap-1">員工價額度房晚 <span class="sort-indicator"></span></span>
               </th>
-              <th data-sort-key="hotelLimit" onclick="toggleSort('hotelLimit')" class="sortable-th px-4 py-3">
-                <div class="inline-flex items-center gap-1.5">
-                  <span>飯店年度限額</span>
-                  <span class="sort-icon inline-flex flex-col leading-none"></span>
-                </div>
+              <th data-sort-key="hotelLimit" onclick="toggleSort('hotelLimit')" class="px-4 py-3 cursor-pointer hover:text-sky-700 transition">
+                <span class="inline-flex items-center gap-1">飯店年度限額 <span class="sort-indicator"></span></span>
               </th>
-              <th data-sort-key="price" onclick="toggleSort('price')" class="sortable-th px-4 py-3 text-right">
-                <div class="inline-flex items-center justify-end gap-1.5">
-                  <span>價格</span>
-                  <span class="sort-icon inline-flex flex-col leading-none"></span>
-                </div>
+              <th data-sort-key="price" onclick="toggleSort('price')" class="px-4 py-3 text-right cursor-pointer hover:text-sky-700 transition">
+                <span class="inline-flex items-center justify-end gap-1">價格 <span class="sort-indicator"></span></span>
               </th>
             </tr>
           </thead>
           <tbody id="detailTableBody" class="divide-y divide-slate-100"></tbody>
         </table>
       </div>
+
+      <!-- 手機版：訂房資訊卡片列表 -->
+      <div id="detailCardsContainer" class="md:hidden p-3.5 space-y-3"></div>
     </section>
 
   </main>
 
-  <script src="shared.js"></script>
   <script>
     let currentYearList = [];
     const sortState = {
       key: 'checkIn',
-      dir: 'asc' // 'asc' | 'desc'
+      dir: 'asc'
     };
 
-    function parseHotelLimitValue(displayStr) {
-      const m = String(displayStr || '').match(/已用(\d+)晚/);
-      return m ? parseInt(m[1], 10) : -1;
-    }
-
-    function parseEmployeeQuotaValue(item) {
-      if (!item.planInfo || !item.planInfo.isEmployeePlan) return -1;
-      return Number(item.nights) || 0;
+    function extractNumericOrSentinel(text, sentinel = -1) {
+      const str = String(text || '');
+      if (str.includes('不計入')) return sentinel;
+      const m = str.match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : sentinel;
     }
 
     function compareBookings(a, b, key, dir) {
+      const factor = dir === 'asc' ? 1 : -1;
       let cmp = 0;
+
       switch (key) {
         case 'hotelName':
-          cmp = (a.hotelName || '').localeCompare(b.hotelName || '', 'zh-Hant-TW');
+          cmp = a.hotelName.localeCompare(b.hotelName, 'zh-Hant');
           break;
         case 'checkIn':
-          cmp = (a.checkIn || '').localeCompare(b.checkIn || '');
+          cmp = a.checkIn.localeCompare(b.checkIn);
           break;
         case 'checkOut':
-          cmp = (a.checkOut || '').localeCompare(b.checkOut || '');
+          cmp = a.checkOut.localeCompare(b.checkOut);
           break;
         case 'qualifyingNights':
-          cmp = (a.qualifyingNights || 0) - (b.qualifyingNights || 0);
+          cmp = a.qualifyingNights - b.qualifyingNights;
           break;
         case 'plan':
-          cmp = (a.planInfo.rawPlan || '').localeCompare(b.planInfo.rawPlan || '', 'zh-Hant-TW');
+          cmp = a.planInfo.rawPlan.localeCompare(b.planInfo.rawPlan, 'zh-Hant');
           break;
         case 'employeeQuota':
-          cmp = parseEmployeeQuotaValue(a) - parseEmployeeQuotaValue(b);
+          cmp = extractNumericOrSentinel(a.employeeQuotaDisplay) - extractNumericOrSentinel(b.employeeQuotaDisplay);
           break;
         case 'hotelLimit':
-          cmp = parseHotelLimitValue(a.hotelLimitDisplay) - parseHotelLimitValue(b.hotelLimitDisplay);
+          cmp = extractNumericOrSentinel(a.hotelLimitDisplay) - extractNumericOrSentinel(b.hotelLimitDisplay);
           break;
         case 'price':
           cmp = (a.priceInfo.twd || 0) - (b.priceInfo.twd || 0);
           break;
         default:
-          cmp = 0;
+          cmp = a.checkIn.localeCompare(b.checkIn);
       }
 
-      if (cmp === 0) {
-        // 次要排序固定依入住日與退房日，確保同值資料順序穩定
-        cmp = (a.checkIn || '').localeCompare(b.checkIn || '') ||
-              (a.checkOut || '').localeCompare(b.checkOut || '');
-        return cmp;
-      }
+      if (cmp !== 0) return cmp * factor;
+      return a.checkIn.localeCompare(b.checkIn);
+    }
 
-      return dir === 'asc' ? cmp : -cmp;
+    function updateSortUI() {
+      document.querySelectorAll('#detailTableHead th[data-sort-key]').forEach(th => {
+        const key = th.getAttribute('data-sort-key');
+        const ind = th.querySelector('.sort-indicator');
+        if (!ind) return;
+        if (key === sortState.key) {
+          th.classList.add('text-sky-700');
+          ind.innerHTML = sortState.dir === 'asc'
+            ? '<span class="text-sky-600 text-[10px]">▲</span>'
+            : '<span class="text-sky-600 text-[10px]">▼</span>';
+        } else {
+          th.classList.remove('text-sky-700');
+          ind.innerHTML = '<span class="text-slate-300 text-[10px]">⇅</span>';
+        }
+      });
+
+      const mobileSelect = document.getElementById('mobileSortSelect');
+      const mobileDirBtn = document.getElementById('mobileSortDirBtn');
+      if (mobileSelect) mobileSelect.value = sortState.key;
+      if (mobileDirBtn) {
+        mobileDirBtn.textContent = sortState.dir === 'asc' ? '升冪 ▲' : '降冪 ▼';
+      }
     }
 
     function toggleSort(key) {
@@ -219,36 +225,36 @@
         sortState.key = key;
         sortState.dir = 'asc';
       }
-      renderDetailTable();
+      renderDetailView();
     }
 
-    function updateSortHeaders() {
-      const headers = document.querySelectorAll('th[data-sort-key]');
-      headers.forEach(th => {
-        const key = th.getAttribute('data-sort-key');
-        const iconEl = th.querySelector('.sort-icon');
-        const isActive = sortState.key === key;
+    function onMobileSortKeyChange() {
+      const sel = document.getElementById('mobileSortSelect');
+      if (sel) {
+        sortState.key = sel.value;
+        renderDetailView();
+      }
+    }
 
-        th.classList.toggle('is-sorted', isActive);
-        th.setAttribute('aria-sort', isActive ? (sortState.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+    function toggleMobileSortDir() {
+      sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+      renderDetailView();
+    }
 
-        if (!iconEl) return;
-        const upCls = isActive && sortState.dir === 'asc' ? 'text-sky-600' : 'text-slate-300';
-        const downCls = isActive && sortState.dir === 'desc' ? 'text-sky-600' : 'text-slate-300';
-
-        iconEl.innerHTML = `
-          <svg class="w-2.5 h-2.5 -mb-0.5 ${upCls}" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true">
-            <path d="M5 0.5L9.2 5.2H0.8L5 0.5Z"/>
-          </svg>
-          <svg class="w-2.5 h-2.5 ${downCls}" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true">
-            <path d="M5 5.5L0.8 0.8H9.2L5 5.5Z"/>
-          </svg>
+    function buildPriceHtml(priceInfo) {
+      if (priceInfo.isPoints) {
+        return `
+          <div class="leading-tight text-slate-800">
+            <div class="font-semibold">${priceInfo.points.toLocaleString()}積分</div>
+            <div class="text-[11px] font-medium text-slate-500 mt-0.5">約${priceInfo.twd.toLocaleString()}元</div>
+          </div>
         `;
-      });
+      }
+      return `<span class="font-semibold text-slate-800">${IHGApp.escapeHtml(priceInfo.display)}</span>`;
     }
 
-    function renderDetailTable() {
-      updateSortHeaders();
+    function renderDetailView() {
+      updateSortUI();
 
       const keyword = (document.getElementById('searchInput').value || '').trim().toLowerCase();
       const filtered = currentYearList
@@ -262,22 +268,21 @@
       document.getElementById('detailCountBadge').textContent = `${filtered.length} 筆`;
 
       const tbody = document.getElementById('detailTableBody');
+      const cardsEl = document.getElementById('detailCardsContainer');
       tbody.innerHTML = '';
+      cardsEl.innerHTML = '';
 
       if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-12 text-center text-slate-400">無符合條件的住宿明細</td></tr>`;
+        cardsEl.innerHTML = `<div class="py-10 text-center text-sm text-slate-400">無符合條件的住宿明細</div>`;
         return;
       }
 
       filtered.forEach(b => {
         const style = IHGApp.getPlanStyle(b.planInfo.basePlan);
-        const priceHtml = b.priceInfo.isPoints
-          ? `<div class="leading-tight">
-               <div class="font-semibold text-slate-800">${b.priceInfo.points.toLocaleString()}積分</div>
-               <div class="text-xs font-normal text-slate-500 mt-0.5">約${b.priceInfo.twd.toLocaleString()}元</div>
-             </div>`
-          : `<div class="font-semibold text-slate-800">${IHGApp.escapeHtml(b.priceInfo.display)}</div>`;
+        const priceHtml = buildPriceHtml(b.priceInfo);
 
+        // 電腦版表格列（固定雙行高度 h-16、飯店名稱自動換行）
         const tr = document.createElement('tr');
         tr.className = 'h-16 hover:bg-sky-50/40 transition-colors';
         tr.innerHTML = `
@@ -301,16 +306,69 @@
           <td class="px-4 py-2 text-right font-mono-num">${priceHtml}</td>
         `;
         tbody.appendChild(tr);
+
+        // 手機版資訊卡
+        const card = document.createElement('div');
+        card.className = 'rounded-xl border border-slate-200/80 bg-white/95 p-3.5 space-y-2.5 shadow-2xs';
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2.5">
+            <div class="flex items-center gap-2.5 min-w-0">
+              ${IHGApp.buildBrandLogoHtml(b.hotelName, 'sm')}
+              <span class="font-bold text-sm text-slate-800 leading-snug break-words">${IHGApp.escapeHtml(b.hotelName)}</span>
+            </div>
+            <div class="text-right font-mono-num text-sm shrink-0">
+              ${priceHtml}
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span class="font-mono-num text-slate-600 font-medium">
+              ${IHGApp.formatDateSlash(b.checkIn)} → ${IHGApp.formatDateSlash(b.checkOut)}
+            </span>
+            <span class="font-mono-num text-[11px] font-bold px-2 py-0.5 rounded-md ${b.qualifyingNights > 0 ? 'bg-sky-50 text-sky-700 border border-sky-200/80' : 'bg-slate-100 text-slate-400 border border-slate-200'}">
+              定級 ${b.qualifyingNights} 晚
+            </span>
+          </div>
+
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${style.badge}">
+              <span class="w-1.5 h-1.5 rounded-full ${style.dot}"></span>
+              ${IHGApp.escapeHtml(b.planInfo.rawPlan)}
+            </span>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px]">
+            <div class="rounded-lg bg-slate-50/90 px-2.5 py-1.5">
+              <div class="text-slate-400">員工價額度</div>
+              <div class="font-medium text-slate-700 mt-0.5">${IHGApp.escapeHtml(b.employeeQuotaDisplay)}</div>
+            </div>
+            <div class="rounded-lg bg-slate-50/90 px-2.5 py-1.5">
+              <div class="text-slate-400">飯店年度限額</div>
+              <div class="font-medium mt-0.5 ${b.hotelLimitExceeded ? 'text-amber-700 font-bold' : 'text-slate-700'}">${IHGApp.escapeHtml(b.hotelLimitDisplay)}</div>
+            </div>
+          </div>
+        `;
+        cardsEl.appendChild(card);
       });
     }
 
-    IHGApp.init({
-      activePage: 'details',
-      onRender({ yearBookings }) {
-        currentYearList = yearBookings;
-        renderDetailTable();
-      }
-    });
+    (function loadSharedAndBoot() {
+      const s = document.createElement('script');
+      s.src = `shared.js?t=${Date.now()}`;
+      s.onload = function () {
+        IHGApp.init({
+          activePage: 'details',
+          onRender({ yearBookings }) {
+            currentYearList = yearBookings;
+            renderDetailView();
+          }
+        });
+      };
+      s.onerror = function () {
+        document.body.insertAdjacentHTML('afterbegin', '<div class="p-3 text-center text-xs text-amber-800 bg-amber-50 border-b border-amber-200">shared.js 載入失敗，請確認網路連線後重新開啟。</div>');
+      };
+      document.body.appendChild(s);
+    })();
   </script>
 </body>
 </html>
