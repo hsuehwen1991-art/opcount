@@ -3,15 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0284c7" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="IHG Duo" />
-  <meta name="theme-color" content="#f3f7fc" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.png" />
   <title>各飯店總覽｜IHG Duo</title>
-  <link rel="manifest" href="./manifest.json" />
-  <link rel="apple-touch-icon" href="./icon.png" />
-  <link rel="icon" type="image/png" href="./icon.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
@@ -40,6 +38,16 @@
       box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(14, 165, 233, 0.04);
     }
 
+    .tech-card-hover {
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tech-card-hover:hover {
+      border-color: rgba(14, 165, 233, 0.45);
+      box-shadow: 0 10px 28px -8px rgba(14, 165, 233, 0.14);
+      transform: translateY(-1px);
+    }
+
     .table-container::-webkit-scrollbar { height: 7px; }
     .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 9999px; }
     .table-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; }
@@ -50,26 +58,24 @@
 
   <div id="appHeader"></div>
 
-  <main class="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 sm:space-y-6" style="padding-bottom: calc(1.75rem + env(safe-area-inset-bottom, 0px));">
-
+  <main class="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-5 sm:space-y-6">
     <div id="appControls"></div>
 
-    <!-- 各飯店年度住宿總覽（電腦版表格 ／ 手機版卡片） -->
     <section class="tech-card rounded-2xl overflow-hidden">
-      <div class="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
+      <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
         <div>
-          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
             <span class="w-1.5 h-4 rounded-full bg-cyan-500"></span>
             各飯店年度住宿總覽（<span id="hotelOverviewYear">2026</span> 日曆年）
           </h2>
           <p class="text-xs text-slate-500 mt-0.5">飯店年度限額顯示剩餘可用額度（上限 14 晚）；晚數合計以該飯店定級房晚加總計算</p>
         </div>
-        <span id="hotelCountBadge" class="font-mono-num text-xs font-semibold px-2.5 py-1 rounded-lg bg-cyan-50 text-cyan-700 border border-cyan-200/70">
-          0 間飯店
+        <span id="hotelCountBadge" class="font-mono-num text-xs font-semibold px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200/70">
+          共 0 間飯店
         </span>
       </div>
 
-      <!-- 電腦版：維持原本 8 欄表格 -->
+      <!-- 電腦版表格 -->
       <div class="hidden md:block table-container overflow-x-auto">
         <table class="w-full text-sm text-left whitespace-nowrap">
           <thead class="bg-slate-50/90 text-slate-500 text-xs font-semibold border-b border-slate-200/80">
@@ -89,153 +95,103 @@
         </table>
       </div>
 
-      <!-- 手機版：飯店卡片清單＋總計卡 -->
-      <div id="hotelOverviewCards" class="md:hidden p-3.5 space-y-3"></div>
+      <!-- 手機版卡片 -->
+      <div id="hotelMobileCards" class="md:hidden p-3.5 space-y-3"></div>
     </section>
-
   </main>
 
+  <script src="shared.js?v=3"></script>
   <script>
     function renderHotelOverview(selectedYear, list) {
       document.getElementById('hotelOverviewYear').textContent = selectedYear;
 
       const hotelMap = {};
-      let grandYouxiang = 0;
-      let grandTanxing = 0;
-      let grandYouren = 0;
-      let grandOther = 0;
-      let grandQualifyingTotal = 0;
+      let grandYouxiang = 0, grandTanxing = 0, grandYouren = 0, grandOther = 0, grandQualifyingTotal = 0;
 
       list.forEach(b => {
         if (!hotelMap[b.hotelName]) {
           hotelMap[b.hotelName] = {
-            hotelName: b.hotelName,
-            youxiang: 0,
-            tanxing: 0,
-            youren: 0,
-            other: 0,
-            qualifyingTotal: 0
+            hotelName: b.hotelName, youxiang: 0, tanxing: 0, youren: 0, other: 0, qualifyingTotal: 0
           };
         }
         const h = hotelMap[b.hotelName];
-        if (b.planInfo.basePlan === 'IHG One Pass 優享價') {
-          h.youxiang += b.nights;
-          grandYouxiang += b.nights;
-        } else if (b.planInfo.basePlan === 'IHG One Pass 彈性價') {
-          h.tanxing += b.nights;
-          grandTanxing += b.nights;
-        } else if (b.planInfo.basePlan === 'IHG One Pass 友人價') {
-          h.youren += b.nights;
-          grandYouren += b.nights;
-        } else {
-          h.other += b.nights;
-          grandOther += b.nights;
-        }
-
+        if (b.planInfo.basePlan === 'IHG One Pass 優享價') { h.youxiang += b.nights; grandYouxiang += b.nights; }
+        else if (b.planInfo.basePlan === 'IHG One Pass 彈性價') { h.tanxing += b.nights; grandTanxing += b.nights; }
+        else if (b.planInfo.basePlan === 'IHG One Pass 友人價') { h.youren += b.nights; grandYouren += b.nights; }
+        else { h.other += b.nights; grandOther += b.nights; }
         h.qualifyingTotal += b.qualifyingNights;
         grandQualifyingTotal += b.qualifyingNights;
       });
 
-      const hotels = Object.values(hotelMap).map(h => {
-        const empSum = h.youxiang + h.tanxing + h.youren;
-        return { ...h, empSum };
-      }).sort((a, b) => b.qualifyingTotal - a.qualifyingTotal || b.empSum - a.empSum);
+      const hotels = Object.values(hotelMap)
+        .map(h => ({ ...h, empSum: h.youxiang + h.tanxing + h.youren }))
+        .sort((a, b) => b.qualifyingTotal - a.qualifyingTotal || b.empSum - a.empSum);
 
-      document.getElementById('hotelCountBadge').textContent = `${hotels.length} 間飯店`;
+      document.getElementById('hotelCountBadge').textContent = `共 ${hotels.length} 間飯店`;
 
       const tbody = document.getElementById('hotelOverviewBody');
       const tfoot = document.getElementById('hotelOverviewFoot');
-      const cardsEl = document.getElementById('hotelOverviewCards');
+      const mobileEl = document.getElementById('hotelMobileCards');
       tbody.innerHTML = '';
-      tfoot.innerHTML = '';
-      cardsEl.innerHTML = '';
+      mobileEl.innerHTML = '';
 
       if (hotels.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" class="px-5 py-12 text-center text-slate-400">該年度尚無符合條件的住宿紀錄</td></tr>`;
-        cardsEl.innerHTML = `<div class="py-10 text-center text-sm text-slate-400">該年度尚無符合條件的住宿紀錄</div>`;
+        tfoot.innerHTML = '';
+        mobileEl.innerHTML = `<div class="py-10 text-center text-sm text-slate-400">該年度尚無符合條件的住宿紀錄</div>`;
         return;
       }
 
-      const formatNightCell = (val) => val > 0
-        ? `<span class="text-slate-800 font-semibold">${val} 晚</span>`
-        : `<span class="text-slate-300">0 晚</span>`;
+      const fmtCell = val => val > 0 ? `<span class="text-slate-800 font-semibold">${val} 晚</span>` : `<span class="text-slate-300">0 晚</span>`;
 
       hotels.forEach(h => {
         const rem = IHGApp.HOTEL_ANNUAL_CAP - h.empSum;
         const ratio = grandQualifyingTotal > 0 ? ((h.qualifyingTotal / grandQualifyingTotal) * 100).toFixed(2) : '0.00';
 
         let limitHtml;
-        if (rem < 0) {
-          limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">超額${Math.abs(rem)}晚</span>`;
-        } else if (rem <= 3) {
-          limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">${rem}晚</span>`;
-        } else {
-          limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/80">${rem}晚</span>`;
-        }
+        if (rem < 0) limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">超額${Math.abs(rem)}晚</span>`;
+        else if (rem <= 3) limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">餘 ${rem} 晚</span>`;
+        else limitHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/80">餘 ${rem} 晚</span>`;
 
-        // 電腦版表格列
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-sky-50/40 transition-colors';
         tr.innerHTML = `
           <td class="px-4 py-3 font-semibold text-slate-800">
-            <div class="flex items-center gap-2.5">
-              ${IHGApp.buildBrandLogoHtml(h.hotelName, 'sm')}
-              <span>${IHGApp.escapeHtml(h.hotelName)}</span>
-            </div>
+            <div class="flex items-center gap-2.5">${IHGApp.buildBrandLogoHtml(h.hotelName, 'sm')}<span>${IHGApp.escapeHtml(h.hotelName)}</span></div>
           </td>
-          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.youxiang)}</td>
-          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.tanxing)}</td>
-          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.youren)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${fmtCell(h.youxiang)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${fmtCell(h.tanxing)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${fmtCell(h.youren)}</td>
           <td class="px-4 py-3 text-right font-mono-num">${limitHtml}</td>
-          <td class="px-4 py-3 text-right font-mono-num">${formatNightCell(h.other)}</td>
+          <td class="px-4 py-3 text-right font-mono-num">${fmtCell(h.other)}</td>
           <td class="px-4 py-3 text-right font-mono-num font-bold text-sky-700">${h.qualifyingTotal} 晚</td>
           <td class="px-4 py-3 text-right font-mono-num font-medium text-slate-600">${ratio}%</td>
         `;
         tbody.appendChild(tr);
 
-        // 手機版卡片
         const card = document.createElement('div');
-        card.className = 'rounded-xl border border-slate-200/80 bg-white/95 p-3.5 space-y-3 shadow-2xs';
+        card.className = 'rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm space-y-3';
         card.innerHTML = `
-          <div class="flex items-start justify-between gap-2.5">
+          <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2.5 min-w-0">
               ${IHGApp.buildBrandLogoHtml(h.hotelName, 'sm')}
-              <span class="font-bold text-sm text-slate-800 leading-snug break-words">${IHGApp.escapeHtml(h.hotelName)}</span>
+              <div class="min-w-0">
+                <div class="font-bold text-sm text-slate-800 leading-snug break-words">${IHGApp.escapeHtml(h.hotelName)}</div>
+                <div class="text-[11px] text-slate-500 mt-0.5 font-mono-num">定級合計 <strong class="text-sky-700">${h.qualifyingTotal} 晚</strong> ・ 佔比 ${ratio}%</div>
+              </div>
             </div>
-            <div class="text-right shrink-0">
-              <div class="font-mono-num text-sm font-bold text-sky-700">${h.qualifyingTotal} 晚</div>
-              <div class="font-mono-num text-[11px] text-slate-500">佔比 ${ratio}%</div>
-            </div>
+            <div class="shrink-0">${limitHtml}</div>
           </div>
-
-          <div class="grid grid-cols-4 gap-1.5 text-center">
-            <div class="rounded-lg bg-sky-50/70 border border-sky-100 py-1.5 px-1">
-              <div class="text-[10px] text-sky-700 font-medium">優享</div>
-              <div class="font-mono-num text-xs font-bold ${h.youxiang > 0 ? 'text-slate-800' : 'text-slate-300'}">${h.youxiang}</div>
-            </div>
-            <div class="rounded-lg bg-teal-50/70 border border-teal-100 py-1.5 px-1">
-              <div class="text-[10px] text-teal-700 font-medium">彈性</div>
-              <div class="font-mono-num text-xs font-bold ${h.tanxing > 0 ? 'text-slate-800' : 'text-slate-300'}">${h.tanxing}</div>
-            </div>
-            <div class="rounded-lg bg-indigo-50/70 border border-indigo-100 py-1.5 px-1">
-              <div class="text-[10px] text-indigo-700 font-medium">友人</div>
-              <div class="font-mono-num text-xs font-bold ${h.youren > 0 ? 'text-slate-800' : 'text-slate-300'}">${h.youren}</div>
-            </div>
-            <div class="rounded-lg bg-slate-50 border border-slate-200/70 py-1.5 px-1">
-              <div class="text-[10px] text-slate-500 font-medium">其他</div>
-              <div class="font-mono-num text-xs font-bold ${h.other > 0 ? 'text-slate-800' : 'text-slate-300'}">${h.other}</div>
-            </div>
-          </div>
-
-          <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span class="text-slate-500">飯店年度限額（剩餘）</span>
-            <span class="font-mono-num">${limitHtml}</span>
+          <div class="grid grid-cols-4 gap-1.5 text-center bg-slate-50/90 rounded-lg p-2 border border-slate-100 text-[11px]">
+            <div><div class="text-slate-400">優享</div><div class="font-mono-num font-bold text-sky-700 mt-0.5">${h.youxiang}晚</div></div>
+            <div><div class="text-slate-400">彈性</div><div class="font-mono-num font-bold text-teal-700 mt-0.5">${h.tanxing}晚</div></div>
+            <div><div class="text-slate-400">友人</div><div class="font-mono-num font-bold text-indigo-700 mt-0.5">${h.youren}晚</div></div>
+            <div><div class="text-slate-400">其他</div><div class="font-mono-num font-bold text-slate-600 mt-0.5">${h.other}晚</div></div>
           </div>
         `;
-        cardsEl.appendChild(card);
+        mobileEl.appendChild(card);
       });
 
-      // 電腦版總計列
       tfoot.innerHTML = `
         <tr>
           <td class="px-4 py-3.5 text-slate-800">總計</td>
@@ -249,52 +205,29 @@
         </tr>
       `;
 
-      // 手機版年度總計卡
-      const summaryCard = document.createElement('div');
-      summaryCard.className = 'rounded-xl border border-sky-200/80 bg-sky-50/70 p-3.5 space-y-2.5';
-      summaryCard.innerHTML = `
-        <div class="flex items-center justify-between">
-          <span class="font-bold text-sm text-slate-800">${selectedYear} 年度總計</span>
-          <span class="font-mono-num text-sm font-bold text-sky-700">${grandQualifyingTotal} 晚（100%）</span>
+      const sumCard = document.createElement('div');
+      sumCard.className = 'rounded-xl border border-sky-200 bg-sky-50/80 p-3.5 space-y-2';
+      sumCard.innerHTML = `
+        <div class="flex items-center justify-between text-xs font-bold text-sky-900">
+          <span>年度總計（${hotels.length} 間飯店）</span>
+          <span class="font-mono-num text-sm text-sky-700">定級 ${grandQualifyingTotal} 晚 (100%)</span>
         </div>
-        <div class="grid grid-cols-4 gap-1.5 text-center">
-          <div class="rounded-lg bg-white/90 border border-sky-100 py-1.5 px-1">
-            <div class="text-[10px] text-slate-500">優享</div>
-            <div class="font-mono-num text-xs font-bold text-slate-800">${grandYouxiang}</div>
-          </div>
-          <div class="rounded-lg bg-white/90 border border-sky-100 py-1.5 px-1">
-            <div class="text-[10px] text-slate-500">彈性</div>
-            <div class="font-mono-num text-xs font-bold text-slate-800">${grandTanxing}</div>
-          </div>
-          <div class="rounded-lg bg-white/90 border border-sky-100 py-1.5 px-1">
-            <div class="text-[10px] text-slate-500">友人</div>
-            <div class="font-mono-num text-xs font-bold text-slate-800">${grandYouren}</div>
-          </div>
-          <div class="rounded-lg bg-white/90 border border-sky-100 py-1.5 px-1">
-            <div class="text-[10px] text-slate-500">其他</div>
-            <div class="font-mono-num text-xs font-bold text-slate-800">${grandOther}</div>
-          </div>
+        <div class="grid grid-cols-4 gap-1.5 text-center text-[11px] font-mono-num text-slate-700">
+          <div>優享 ${grandYouxiang}晚</div>
+          <div>彈性 ${grandTanxing}晚</div>
+          <div>友人 ${grandYouren}晚</div>
+          <div>其他 ${grandOther}晚</div>
         </div>
       `;
-      cardsEl.appendChild(summaryCard);
+      mobileEl.appendChild(sumCard);
     }
 
-    (function loadSharedAndBoot() {
-      const s = document.createElement('script');
-      s.src = `shared.js?t=${Date.now()}`;
-      s.onload = function () {
-        IHGApp.init({
-          activePage: 'hotels',
-          onRender({ selectedYear, yearBookings }) {
-            renderHotelOverview(selectedYear, yearBookings);
-          }
-        });
-      };
-      s.onerror = function () {
-        document.body.insertAdjacentHTML('afterbegin', '<div class="p-3 text-center text-xs text-amber-800 bg-amber-50 border-b border-amber-200">shared.js 載入失敗，請確認網路連線後重新開啟。</div>');
-      };
-      document.body.appendChild(s);
-    })();
+    IHGApp.init({
+      activePage: 'hotels',
+      onRender({ selectedYear, yearBookings }) {
+        renderHotelOverview(selectedYear, yearBookings);
+      }
+    });
   </script>
 </body>
 </html>

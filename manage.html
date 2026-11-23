@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0284c7" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="IHG Duo" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.png" />
+  <title>行程管理｜IHG Duo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f3f7fc;
+      background-image:
+        radial-gradient(circle at 12% 0%, rgba(14, 165, 233, 0.10) 0%, transparent 38%),
+        radial-gradient(circle at 88% 8%, rgba(99, 102, 241, 0.08) 0%, transparent 34%),
+        radial-gradient(#cbd5e1 0.85px, transparent 0.85px);
+      background-size: 100% 100%, 100% 100%, 24px 24px;
+      background-attachment: fixed;
+    }
+
+    .font-mono-num {
+      font-family: 'JetBrains Mono', 'Inter', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tech-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(203, 213, 225, 0.78);
+      box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(14, 165, 233, 0.04);
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen">
+
+  <div id="appHeader"></div>
+
+  <main class="max-w-5xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-5">
+
+    <!-- 飯店歷史名稱自動完成清單 -->
+    <datalist id="hotelHistoryList"></datalist>
+
+    <!-- 頂部雙狀態卡：安全鎖 ＋ OneSignal 搶房推播 -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+      <!-- 安全鎖狀態 -->
+      <div class="tech-card rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div id="pinIconBox" class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <div class="text-xs font-semibold text-slate-400">寫入安全鎖</div>
+            <div id="pinStatusText" class="text-sm font-bold text-slate-800 truncate">尚未解鎖（僅供檢視）</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="pinActionBtn" onclick="openPinModal()" class="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm transition">
+            輸入密碼
+          </button>
+          <button id="pinLockBtn" onclick="lockPin()" class="hidden px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold transition">
+            鎖定
+          </button>
+        </div>
+      </div>
+
+      <!-- OneSignal 主畫面 App 推播設定 -->
+      <div class="tech-card rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div id="pushIconBox" class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <div class="text-xs font-semibold text-slate-400">IHG Duo 搶房推播</div>
+            <div id="pushStatusText" class="text-sm font-bold text-slate-800 truncate">偵測推播狀態中...</div>
+            <div id="pushHintText" class="text-[11px] text-slate-400 truncate hidden"></div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="pushToggleBtn" onclick="togglePushSubscription()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition disabled:opacity-50" disabled>
+            開啟推播
+          </button>
+          <button id="pushTestBtn" onclick="sendTestPush()" class="hidden px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition" title="發送測試推播到已訂閱裝置">
+            測試
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 子分頁切換：正式訂房 / 180 天搶房 / 定向加倍活動 -->
+    <section class="tech-card rounded-2xl p-1.5 grid grid-cols-3 gap-1.5">
+      <button id="tabBtn-booking" onclick="switchSubTab('booking')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 bg-sky-600 text-white shadow-sm">
+        <span>正式訂房</span>
+        <span id="badgeBookingCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-white/20">0</span>
+      </button>
+      <button id="tabBtn-sniper" onclick="switchSubTab('sniper')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-100">
+        <span>180 天搶房</span>
+        <span id="badgeSniperCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-600">0</span>
+      </button>
+      <button id="tabBtn-promo" onclick="switchSubTab('promo')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-100">
+        <span>加倍活動</span>
+        <span id="badgePromoCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-600">0</span>
+      </button>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 子分頁 1：正式訂房管理（最多 4 間房 ＋ 即時併入 ＋ 勾選合併）         -->
+    <!-- =================================================================== -->
+    <div id="panel-booking" class="space-y-5">
+
+      <!-- 訂房表單卡 -->
+      <section class="tech-card rounded-2xl overflow-hidden">
+        <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-slate-50/60">
+          <div class="flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-sky-500"></span>
+            <h2 id="bookingFormTitle" class="text-sm sm:text-base font-bold text-slate-800">新增正式訂房</h2>
+          </div>
+          <button id="cancelBookingEditBtn" onclick="resetBookingForm()" class="hidden px-2.5 py-1 rounded-lg bg-slate-200/80 hover:bg-slate-200 text-slate-700 text-xs font-semibold">
+            取消編輯
+          </button>
+        </div>
+
+        <!-- 搶房轉訂房提示條 -->
+        <div id="conversionBanner" class="hidden mx-4 sm:mx-5 mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-2 text-xs text-emerald-800">
+          <div>
+            <span class="font-bold">🎯 搶房轉訂房模式：</span>
+            <span id="conversionBannerText">完成送出後將自動刪除原搶房提醒並撤銷剩餘推播。</span>
+          </div>
+          <button onclick="cancelConversionMode()" class="px-2 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-700 font-semibold shrink-0">取消轉換</button>
+        </div>
+
+        <form id="bookingForm" onsubmit="submitBookingForm(event)" class="p-4 sm:p-5 space-y-4">
+          <input type="hidden" id="bfEventId" value="" />
+          <input type="hidden" id="bfSniperEventId" value="" />
+
+          <!-- 飯店名稱 ＋ 品牌即時預覽 -->
+          <div>
+            <label for="bfHotelName" class="block text-xs font-semibold text-slate-600 mb-1.5">飯店名稱（可點選歷史快選避免錯字）</label>
+            <div class="flex items-center gap-2.5">
+              <div id="bfBrandPreview" class="shrink-0"></div>
+              <input id="bfHotelName" type="text" list="hotelHistoryList" required placeholder="例如：臺北洲際酒店"
+                oninput="onBookingFormChanged()"
+                class="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
+            </div>
+          </div>
+
+          <!-- 入住日 / 退房日 -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label for="bfCheckIn" class="block text-xs font-semibold text-slate-600 mb-1.5">入住日</label>
+              <input id="bfCheckIn" type="date" required onchange="onBookingDateChanged('in')"
+                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="bfCheckOut" class="text-xs font-semibold text-slate-600">退房日</label>
+                <span id="bfNightsBadge" class="font-mono-num text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/70">共 1 晚</span>
+              </div>
+              <input id="bfCheckOut" type="date" required onchange="onBookingDateChanged('out')"
+                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
+            </div>
+          </div>
+
+          <!-- 動態房間區（1 ~ 4 間房） -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-600">房間方案與價格（最多支援 4 間房）</span>
+              <button type="button" id="addRoomBtn" onclick="addBookingRoom()" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-semibold transition">
+                ＋ 新增第 2 間房
+              </button>
+            </div>
+            <div id="bookingRoomsContainer" class="space-y-3"></div>
+          </div>
+
+          <!-- 入口 A：即時偵測連續行程併入建議 -->
+          <div id="autoMergeBox" class="hidden rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 space-y-2">
+            <label class="flex items-start gap-2.5 cursor-pointer">
+              <input type="checkbox" id="autoMergeCheckbox" class="mt-0.5 w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
+              <div class="text-xs text-indigo-900 leading-relaxed">
+                <div class="font-bold">🔗 偵測到可合併的連續訂房行程！</div>
+                <div id="autoMergeDetail" class="text-indigo-700 mt-0.5"></div>
+              </div>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-end gap-2.5 pt-2">
+            <button type="button" onclick="resetBookingForm()" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold transition">
+              重設表單
+            </button>
+            <button type="submit" id="bfSubmitBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-500 hover:to-cyan-500 text-white text-sm font-bold shadow-sm shadow-sky-500/25 transition disabled:opacity-50">
+              寫入共用日曆
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- 既有正式訂房管理清單（含入口 B：勾選合併連續行程） -->
+      <section class="tech-card rounded-2xl overflow-hidden">
+        <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
+              已建立的正式訂房清單
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">同步自共用日曆「陳保志」，修改與刪除皆即時寫回</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <select id="manageYearSelect" onchange="onManageYearChange()" class="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none"></select>
+            <input id="manageBookingSearch" type="search" placeholder="篩選飯店..." oninput="renderManageBookingsList()"
+              class="flex-1 sm:w-40 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/40" />
+            <button id="toggleMergeModeBtn" onclick="toggleMergeMode()" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition">
+              合併連續行程
+            </button>
+          </div>
+        </div>
+
+        <!-- 合併模式操作列 -->
+        <div id="mergeModeBar" class="hidden px-4 sm:px-5 py-3 bg-indigo-50 border-b border-indigo-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div class="text-indigo-800 font-medium">
+            請勾選 2 筆以上「同飯店、日期連續、房數與方案相同」的訂房（已選 <strong id="mergeSelectedCount" class="font-mono-num">0</strong> 筆）
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="toggleMergeMode(false)" class="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-slate-600 font-semibold">取消</button>
+            <button onclick="openMergePreview()" id="mergePreviewBtn" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold disabled:opacity-40" disabled>
+              預覽並合併
+            </button>
+          </div>
+        </div>
+
+        <div id="manageBookingsList" class="p-4 space-y-3"></div>
+      </section>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- 子分頁 2：180 天搶房提醒（無備註、支援連住拆日、時區換算、轉訂房）    -->
+    <!-- =================================================================== -->
+    <div id="panel-sniper" class="hidden space-y-5">
+      <section class="tech-card rounded-2xl overflow-hidden">
+        <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-slate-50/60">
+          <div class="flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-amber-500"></span>
+            <h2 id="sniperFormTitle" class="text-sm sm:text-base font-bold text-slate-800">新增 180 天搶房提醒</h2>
+          </div>
+          <button id="cancelSniperEditBtn" onclick="resetSniperForm()" class="hidden px-2.5 py-1 rounded-lg bg-slate-200/80 text-slate-700 text-xs font-semibold">
+            取消編輯
+          </button>
+        </div>
+
+        <form id="sniperForm" onsubmit="submitSniperForm(event)" class="p-4 sm:p-5 space-y-4">
+          <input type="hidden" id="sfEventId" value="" />
+
+          <div>
+            <label for="sfHotelName" class="block text-xs font-semibold text-slate-600 mb-1.5">目標飯店名稱</label>
+            <div class="flex items-center gap-2.5">
+              <div id="sfBrandPreview" class="shrink-0"></div>
+              <input id="sfHotelName" type="text" list="hotelHistoryList" required placeholder="例如：東京全日空洲際酒店"
+                oninput="updateSniperPreview()"
+                class="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium focus:ring-2 focus:ring-amber-500/40 focus:border-amber-400 outline-none" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label for="sfCheckIn" class="block text-xs font-semibold text-slate-600 mb-1.5">預計入住日（第 1 晚）</label>
+              <input id="sfCheckIn" type="date" required onchange="updateSniperPreview()"
+                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-amber-500/40 outline-none" />
+            </div>
+            <div id="sfNightsWrapper">
+              <label for="sfNights" class="block text-xs font-semibold text-slate-600 mb-1.5">預計連住晚數（自動拆成逐日提醒）</label>
+              <select id="sfNights" onchange="updateSniperPreview()"
+                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-800 outline-none">
+                <option value="1">1 晚（單日提醒）</option>
+                <option value="2">2 晚（自動建立 2 筆逐日提醒）</option>
+                <option value="3">3 晚（自動建立 3 筆逐日提醒）</option>
+                <option value="4">4 晚（自動建立 4 筆逐日提醒）</option>
+                <option value="5">5 晚（自動建立 5 筆逐日提醒）</option>
+                <option value="6">6 晚（自動建立 6 筆逐日提醒）</option>
+                <option value="7">7 晚（自動建立 7 筆逐日提醒）</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 飯店所在時區（快選 ＋ 完整下拉） -->
+          <div class="space-y-2">
+            <label for="sfTimeZone" class="block text-xs font-semibold text-slate-600">飯店所在時區（以當地 00:00 開放反推台灣時間）</label>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" onclick="pickSniperTz('Asia/Taipei')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">台灣 UTC+8</button>
+              <button type="button" onclick="pickSniperTz('Asia/Tokyo')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">日本/韓國 UTC+9</button>
+              <button type="button" onclick="pickSniperTz('Asia/Bangkok')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">泰國/越南 UTC+7</button>
+              <button type="button" onclick="pickSniperTz('Asia/Singapore')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">新加坡/港澳 UTC+8</button>
+              <button type="button" onclick="pickSniperTz('Europe/London')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">英國</button>
+              <button type="button" onclick="pickSniperTz('Europe/Paris')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">歐洲中部</button>
+              <button type="button" onclick="pickSniperTz('America/Los_Angeles')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">美西</button>
+            </div>
+            <select id="sfTimeZone" onchange="updateSniperPreview()" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 outline-none">
+              <optgroup label="亞洲（常用）">
+                <option value="Asia/Taipei">台灣 — Asia/Taipei (UTC+8)</option>
+                <option value="Asia/Tokyo">日本 — Asia/Tokyo (UTC+9)</option>
+                <option value="Asia/Seoul">韓國 — Asia/Seoul (UTC+9)</option>
+                <option value="Asia/Bangkok">泰國 — Asia/Bangkok (UTC+7)</option>
+                <option value="Asia/Ho_Chi_Minh">越南 — Asia/Ho_Chi_Minh (UTC+7)</option>
+                <option value="Asia/Singapore">新加坡 — Asia/Singapore (UTC+8)</option>
+                <option value="Asia/Hong_Kong">香港/澳門 — Asia/Hong_Kong (UTC+8)</option>
+                <option value="Asia/Kuala_Lumpur">馬來西亞 — Asia/Kuala_Lumpur (UTC+8)</option>
+                <option value="Asia/Makassar">峇里島 — Asia/Makassar (UTC+8)</option>
+                <option value="Asia/Jakarta">雅加達 — Asia/Jakarta (UTC+7)</option>
+                <option value="Asia/Shanghai">中國大陸 — Asia/Shanghai (UTC+8)</option>
+                <option value="Asia/Dubai">杜拜 — Asia/Dubai (UTC+4)</option>
+              </optgroup>
+              <optgroup label="大洋洲">
+                <option value="Australia/Sydney">雪梨 — Australia/Sydney</option>
+                <option value="Australia/Melbourne">墨爾本 — Australia/Melbourne</option>
+                <option value="Pacific/Auckland">奧克蘭 — Pacific/Auckland</option>
+                <option value="Pacific/Honolulu">夏威夷 — Pacific/Honolulu</option>
+              </optgroup>
+              <optgroup label="歐洲（自動處理夏令時間）">
+                <option value="Europe/London">倫敦 — Europe/London</option>
+                <option value="Europe/Paris">巴黎/法蘭克福/米蘭 — Europe/Paris</option>
+                <option value="Europe/Zurich">蘇黎世 — Europe/Zurich</option>
+                <option value="Europe/Athens">雅典 — Europe/Athens</option>
+              </optgroup>
+              <optgroup label="美洲（自動處理夏令時間）">
+                <option value="America/New_York">紐約/美東 — America/New_York</option>
+                <option value="America/Chicago">芝加哥/美中 — America/Chicago</option>
+                <option value="America/Los_Angeles">洛杉磯/舊金山 — America/Los_Angeles</option>
+                <option value="America/Vancouver">溫哥華 — America/Vancouver</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- 即時換算結果預覽 -->
+          <div id="sniperCalcPreview" class="rounded-2xl bg-gradient-to-br from-amber-50/90 to-sky-50/70 border border-amber-200/80 p-4 space-y-2 text-xs">
+            <div class="font-bold text-slate-700">請選擇預計入住日以即時換算台灣開搶時間</div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2.5 pt-1">
+            <button type="button" onclick="resetSniperForm()" class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold">重設</button>
+            <button type="submit" id="sfSubmitBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-sm font-bold shadow-sm transition disabled:opacity-50">
+              建立搶房提醒
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- 待搶清單 -->
+      <section class="tech-card rounded-2xl overflow-hidden">
+        <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 bg-slate-50/50">
+          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-amber-500"></span>
+            待搶目標倒數清單（同步自「IHG活動」日曆）
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">搶房成功後可直接點擊「轉正式訂房」，自動帶入資料並移除原提醒與推播</p>
+        </div>
+        <div id="sniperListContainer" class="p-4 space-y-3"></div>
+      </section>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- 子分頁 3：定向加倍活動管理（個人日曆「IHG活動」）                      -->
+    <!-- =================================================================== -->
+    <div id="panel-promo" class="hidden space-y-5">
+      <section class="tech-card rounded-2xl overflow-hidden">
+        <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-slate-50/60">
+          <div class="flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-teal-500"></span>
+            <h2 id="promoFormTitle" class="text-sm sm:text-base font-bold text-slate-800">新增定向加倍活動</h2>
+          </div>
+          <button id="cancelPromoEditBtn" onclick="resetPromoForm()" class="hidden px-2.5 py-1 rounded-lg bg-slate-200/80 text-slate-700 text-xs font-semibold">
+            取消編輯
+          </button>
+        </div>
+
+        <form id="promoForm" onsubmit="submitPromoForm(event)" class="p-4 sm:p-5 space-y-4">
+          <input type="hidden" id="pfEventId" value="" />
+          <div>
+            <label for="pfName" class="block text-xs font-semibold text-slate-600 mb-1.5">活動名稱（系統會自動加上【IHG加倍】前綴）</label>
+            <input id="pfName" type="text" required placeholder="例如：Q1 雙倍房晚定向活動"
+              class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500/40" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label for="pfStartDate" class="block text-xs font-semibold text-slate-600 mb-1.5">活動開始日</label>
+              <input id="pfStartDate" type="date" required class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none" />
+            </div>
+            <div>
+              <label for="pfEndDate" class="block text-xs font-semibold text-slate-600 mb-1.5">活動結束日（含當日）</label>
+              <input id="pfEndDate" type="date" required class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
+            <div>
+              <label for="pfCap" class="block text-xs font-semibold text-slate-600 mb-1.5">活動贈送上限（晚數）</label>
+              <input id="pfCap" type="number" min="1" max="365" value="5" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none disabled:bg-slate-100 disabled:text-slate-400" />
+            </div>
+            <div class="flex flex-col gap-2 pb-1">
+              <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                <input type="checkbox" id="pfUnlimited" onchange="document.getElementById('pfCap').disabled = this.checked" class="w-4 h-4 rounded text-teal-600" />
+                贈送晚數無上限
+              </label>
+              <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                <input type="checkbox" id="pfStatusOnly" class="w-4 h-4 rounded text-teal-600" />
+                僅計入會籍定級（不計入 40 晚進階獎勵）
+              </label>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2.5 pt-1">
+            <button type="button" onclick="resetPromoForm()" class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold">重設</button>
+            <button type="submit" id="pfSubmitBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white text-sm font-bold shadow-sm transition">
+              寫入「IHG活動」日曆
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="tech-card rounded-2xl overflow-hidden">
+        <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 bg-slate-50/50">
+          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-teal-500"></span>
+            已建立的定向加倍活動
+          </h2>
+        </div>
+        <div id="managePromosList" class="p-4 space-y-3"></div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- Toast 通知氣泡 -->
+  <div id="toastBox" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 hidden max-w-sm w-[92%] px-4 py-3 rounded-2xl shadow-xl border text-xs sm:text-sm font-semibold text-center transition"></div>
+
+  <!-- PIN 密碼驗證彈窗 -->
+  <div id="pinModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">輸入操作安全密碼（PIN）</h3>
+        <p class="text-xs text-slate-500 mt-1">為了保護公開儲存庫的日曆寫入權限，新增、修改或刪除前須驗證一次密碼。</p>
+      </div>
+      <form onsubmit="submitPinModal(event)" class="space-y-3">
+        <input id="pinModalInput" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="請輸入操作密碼"
+          class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-center font-mono-num text-lg tracking-widest outline-none focus:ring-2 focus:ring-sky-500" />
+        <label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+          <input type="checkbox" id="pinRememberCheck" checked class="w-4 h-4 rounded text-sky-600" />
+          在此裝置記住密碼（日後免重複輸入）
+        </label>
+        <div id="pinModalError" class="hidden text-xs font-semibold text-rose-600"></div>
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button type="button" onclick="closePinModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold">取消</button>
+          <button type="submit" id="pinModalSubmitBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold">驗證並解鎖</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 手動合併連續行程預覽彈窗（入口 B） -->
+  <div id="mergeModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">確認合併連續訂房行程</h3>
+        <p id="mergeModalSummary" class="text-xs text-slate-500 mt-1"></p>
+      </div>
+      <div id="mergeModalRooms" class="space-y-2.5"></div>
+      <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800">
+        系統將先更新首筆行程的退房日與總金額，確認寫入成功後才刪除其餘被併入的單晚行程，確保資料安全不漏單。
+      </div>
+      <div class="flex items-center justify-end gap-2">
+        <button type="button" onclick="closeMergeModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold">取消</button>
+        <button type="button" id="confirmMergeBtn" onclick="executeManualMerge()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold">確認執行合併</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通用二次刪除確認彈窗 -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <h3 id="confirmModalTitle" class="text-base font-bold text-slate-900">確認刪除</h3>
+      <p id="confirmModalBody" class="text-xs sm:text-sm text-slate-600 leading-relaxed"></p>
+      <div class="flex items-center justify-end gap-2">
+        <button type="button" onclick="closeConfirmModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold">取消</button>
+        <button type="button" id="confirmModalOkBtn" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold">確認刪除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="shared.js?v=3"></script>
+  <script>
+    // =========================================================================
+    // 狀態管理
+    // =========================================================================
+    let appData = { selectedYear: new Date().getFullYear(), rawBookingEvents: [], promos: [], snipers: [] };
+    let activeSubTab = 'booking';
+    let bookingRooms = [];
+    let detectedAutoMerge = null;
+    let mergeModeActive = false;
+    let mergeSelectedIds = new Set();
+    let pendingMergePlan = null;
+    let pendingPinCallback = null;
+    let sessionUnlockedPin = '';
+    let oneSignalInstance = null;
+
+    // =========================================================================
+    // Toast 與 Modal 工具
+    // =========================================================================
+    let toastTimer = null;
+    function showToast(msg, type = 'success') {
+      const box = document.getElementById('toastBox');
+      const clsMap = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        error: 'bg-rose-600 text-white border-rose-500',
+        info: 'bg-sky-700 text-white border-sky-600'
+      };
+      box.className = `fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[92%] px-4 py-3 rounded-2xl shadow-xl border text-xs sm:text-sm font-semibold text-center ${clsMap[type] || clsMap.info}`;
+      box.textContent = msg;
+      box.classList.remove('hidden');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => box.classList.add('hidden'), 3600);
+    }
+
+    function openConfirmModal(title, body, onConfirm) {
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalBody').textContent = body;
+      const okBtn = document.getElementById('confirmModalOkBtn');
+      okBtn.onclick = async () => {
+        okBtn.disabled = true;
+        try {
+          await onConfirm();
+          closeConfirmModal();
+        } finally {
+          okBtn.disabled = false;
+        }
+      };
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+    function closeConfirmModal() { document.getElementById('confirmModal').classList.add('hidden'); }
+
+    // =========================================================================
+    // 安全鎖 PIN 管理
+    // =========================================================================
+    function getActivePin() {
+      return sessionUnlockedPin || IHGApp.getSavedPin();
+    }
+
+    function updatePinUI() {
+      const hasPin = Boolean(getActivePin());
+      const iconBox = document.getElementById('pinIconBox');
+      const statusText = document.getElementById('pinStatusText');
+      const actionBtn = document.getElementById('pinActionBtn');
+      const lockBtn = document.getElementById('pinLockBtn');
+      const testBtn = document.getElementById('pushTestBtn');
+
+      if (hasPin) {
+        iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0';
+        statusText.textContent = '已解鎖（可寫入與管理）';
+        actionBtn.classList.add('hidden');
+        lockBtn.classList.remove('hidden');
+        if (testBtn) testBtn.classList.remove('hidden');
+      } else {
+        iconBox.className = 'w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0';
+        statusText.textContent = '已鎖定（操作時驗證密碼）';
+        actionBtn.classList.remove('hidden');
+        lockBtn.classList.add('hidden');
+        if (testBtn) testBtn.classList.add('hidden');
+      }
+    }
+
+    function openPinModal(afterUnlockCb = null) {
+      pendingPinCallback = afterUnlockCb;
+      document.getElementById('pinModalInput').value = '';
+      document.getElementById('pinModalError').classList.add('hidden');
+      document.getElementById('pinModal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('pinModalInput').focus(), 80);
+    }
+
+    function closePinModal() {
+      document.getElementById('pinModal').classList.add('hidden');
+      pendingPinCallback = null;
+    }
+
+    async function submitPinModal(e) {
+      e.preventDefault();
+      const inputPin = document.getElementById('pinModalInput').value.trim();
+      const remember = document.getElementById('pinRememberCheck').checked;
+      const errEl = document.getElementById('pinModalError');
+      const btn = document.getElementById('pinModalSubmitBtn');
+      if (!inputPin) return;
+
+      btn.disabled = true;
+      btn.textContent = '驗證中...';
+      errEl.classList.add('hidden');
+
+      try {
+        await IHGApp.postApi('verifyPin', {}, inputPin);
+        sessionUnlockedPin = inputPin;
+        if (remember) IHGApp.savePin(inputPin);
+        else IHGApp.clearPin();
+        updatePinUI();
+        const cb = pendingPinCallback;
+        closePinModal();
+        showToast('安全鎖已解鎖', 'success');
+        if (typeof cb === 'function') cb();
+      } catch (err) {
+        errEl.textContent = err.message || '驗證失敗';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '驗證並解鎖';
+      }
+    }
+
+    function lockPin() {
+      sessionUnlockedPin = '';
+      IHGApp.clearPin();
+      updatePinUI();
+      showToast('已重新鎖定並清除本機密碼', 'info');
+    }
+
+    async function runProtectedAction(fn) {
+      if (!getActivePin()) {
+        openPinModal(() => runProtectedAction(fn));
+        return;
+      }
+      try {
+        await fn(getActivePin());
+      } catch (err) {
+        if (err && (err.code === 'INVALID_PIN' || err.code === 'LOCKED')) {
+          sessionUnlockedPin = '';
+          IHGApp.clearPin();
+          updatePinUI();
+        }
+        showToast(err.message || '操作失敗', 'error');
+      }
+    }
+
+    // =========================================================================
+    // OneSignal 主畫面 App 推播整合
+    // =========================================================================
+    function initOneSignalClient() {
+      const statusEl = document.getElementById('pushStatusText');
+      const hintEl = document.getElementById('pushHintText');
+      const btn = document.getElementById('pushToggleBtn');
+
+      const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+      if (isIos && !isStandalone) {
+        statusEl.textContent = '請從主畫面 App 開啟';
+        hintEl.textContent = 'iOS 規定須先將 IHG Duo 加入主畫面才能開啟推播';
+        hintEl.classList.remove('hidden');
+        btn.disabled = true;
+        btn.textContent = '需主畫面開啟';
+        return;
+      }
+
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        statusEl.textContent = '此瀏覽器不支援網頁推播';
+        btn.disabled = true;
+        return;
+      }
+
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          const basePath = window.location.pathname.replace(/[^/]*$/, '');
+          const swPath = basePath.replace(/^\//, '') + 'OneSignalSDKWorker.js';
+          await OneSignal.init({
+            appId: IHGApp.ONESIGNAL_APP_ID,
+            serviceWorkerParam: { scope: basePath },
+            serviceWorkerPath: swPath
+          });
+          oneSignalInstance = OneSignal;
+          refreshPushStatusUI();
+          OneSignal.User.PushSubscription.addEventListener('change', () => refreshPushStatusUI());
+        } catch (err) {
+          console.warn('OneSignal 初始化失敗:', err);
+          statusEl.textContent = '推播初始化失敗';
+          hintEl.textContent = err.message || '請確認已上傳 OneSignalSDKWorker.js';
+          hintEl.classList.remove('hidden');
+        }
+      });
+    }
+
+    function refreshPushStatusUI() {
+      if (!oneSignalInstance) return;
+      const statusEl = document.getElementById('pushStatusText');
+      const hintEl = document.getElementById('pushHintText');
+      const iconBox = document.getElementById('pushIconBox');
+      const btn = document.getElementById('pushToggleBtn');
+
+      const optedIn = Boolean(oneSignalInstance.User.PushSubscription.optedIn);
+      const perm = Notification.permission;
+
+      btn.disabled = false;
+      hintEl.classList.add('hidden');
+
+      if (perm === 'denied') {
+        iconBox.className = 'w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0';
+        statusEl.textContent = '通知權限已被封鎖';
+        hintEl.textContent = '請至手機「設定 → 通知 → IHG Duo」重新開啟';
+        hintEl.classList.remove('hidden');
+        btn.textContent = '已封鎖';
+        btn.disabled = true;
+      } else if (optedIn) {
+        iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0';
+        statusEl.textContent = '已訂閱本機搶房推播 ✓';
+        btn.textContent = '關閉推播';
+        btn.className = 'px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition';
+      } else {
+        iconBox.className = 'w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center shrink-0';
+        statusEl.textContent = '尚未開啟本機推播';
+        btn.textContent = '開啟推播';
+        btn.className = 'px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition';
+      }
+    }
+
+    async function togglePushSubscription() {
+      if (!oneSignalInstance) return;
+      const btn = document.getElementById('pushToggleBtn');
+      btn.disabled = true;
+      try {
+        const optedIn = Boolean(oneSignalInstance.User.PushSubscription.optedIn);
+        if (optedIn) {
+          await oneSignalInstance.User.PushSubscription.optOut();
+          showToast('已關閉此裝置的搶房推播', 'info');
+        } else {
+          await oneSignalInstance.Notifications.requestPermission();
+          await oneSignalInstance.User.PushSubscription.optIn();
+          showToast('已開啟搶房推播通知！', 'success');
+        }
+      } catch (err) {
+        showToast('切換推播失敗：' + (err.message || err), 'error');
+      } finally {
+        refreshPushStatusUI();
+      }
+    }
+
+    function sendTestPush() {
+      runProtectedAction(async (pin) => {
+        showToast('正在發送測試推播...', 'info');
+        const res = await IHGApp.postApi('testPush', {}, pin);
+        showToast(res.message || '測試推播已送出', 'success');
+      });
+    }
+
+    // =========================================================================
+    // 子分頁切換
+    // =========================================================================
+    function switchSubTab(tab) {
+      activeSubTab = tab;
+      ['booking', 'sniper', 'promo'].forEach(t => {
+        const panel = document.getElementById('panel-' + t);
+        const btn = document.getElementById('tabBtn-' + t);
+        const badge = btn.querySelector('span:last-child');
+        if (t === tab) {
+          panel.classList.remove('hidden');
+          btn.className = 'subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 bg-sky-600 text-white shadow-sm';
+          if (badge) badge.className = 'font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-white/20 text-white';
+        } else {
+          panel.classList.add('hidden');
+          btn.className = 'subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-100';
+          if (badge) badge.className = 'font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-600';
+        }
+      });
+      try { window.history.replaceState(null, '', `#${tab}`); } catch (_) {}
+    }
+
+    // =========================================================================
+    // 子分頁 1：正式訂房表單（1~4 間房 ＋ 即時併入 ＋ 勾選合併）
+    // =========================================================================
+    function makeDefaultRoom(quotaYear) {
+      return {
+        planType: 'IHG One Pass 優享價',
+        customPlan: '',
+        quotaYear: quotaYear || new Date().getFullYear(),
+        currency: 'TWD',
+        amount: ''
+      };
+    }
+
+    function resetBookingForm() {
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const nextIso = IHGApp.addDaysIso(todayIso, 1);
+      document.getElementById('bfEventId').value = '';
+      document.getElementById('bfSniperEventId').value = '';
+      document.getElementById('bfHotelName').value = '';
+      document.getElementById('bfCheckIn').value = todayIso;
+      document.getElementById('bfCheckOut').value = nextIso;
+      document.getElementById('bookingFormTitle').textContent = '新增正式訂房';
+      document.getElementById('bfSubmitBtn').textContent = '寫入共用日曆';
+      document.getElementById('cancelBookingEditBtn').classList.add('hidden');
+      document.getElementById('conversionBanner').classList.add('hidden');
+      bookingRooms = [makeDefaultRoom(new Date().getFullYear())];
+      renderBookingRooms();
+      onBookingFormChanged();
+    }
+
+    function cancelConversionMode() {
+      document.getElementById('bfSniperEventId').value = '';
+      document.getElementById('conversionBanner').classList.add('hidden');
+    }
+
+    function addBookingRoom() {
+      if (bookingRooms.length >= IHGApp.MAX_ROOMS_PER_EVENT) return;
+      const last = bookingRooms[bookingRooms.length - 1];
+      bookingRooms.push({ ...last, amount: '' });
+      renderBookingRooms();
+      onBookingFormChanged();
+    }
+
+    function removeBookingRoom(idx) {
+      if (bookingRooms.length <= 1) return;
+      bookingRooms.splice(idx, 1);
+      renderBookingRooms();
+      onBookingFormChanged();
+    }
+
+    function updateRoomField(idx, field, value) {
+      if (!bookingRooms[idx]) return;
+      bookingRooms[idx][field] = value;
+      if (field === 'planType') {
+        renderBookingRooms();
+      } else {
+        updateRoomPreviewText(idx);
+      }
+      evaluateAutoMerge();
+    }
+
+    function getRoomCompiled(rm) {
+      const basePlan = rm.planType === '__CUSTOM__' ? (rm.customPlan || '').trim() : rm.planType;
+      const isEmp = Object.prototype.hasOwnProperty.call(IHGApp.EMPLOYEE_PLANS, basePlan);
+      const planLine = isEmp ? `${basePlan}-${rm.quotaYear}` : basePlan;
+      const num = parseFloat(rm.amount);
+      let priceLine = '';
+      if (!isNaN(num) && num >= 0) {
+        if (rm.currency === 'POINTS') priceLine = `${Math.round(num)} 積分`;
+        else if (rm.currency === 'TWD') priceLine = `${Math.round(num)}元`;
+        else priceLine = `${rm.currency} ${num}`;
+      }
+      return { basePlan, isEmp, planLine, priceLine };
+    }
+
+    function updateRoomPreviewText(idx) {
+      const el = document.getElementById(`roomPreview_${idx}`);
+      if (!el || !bookingRooms[idx]) return;
+      const comp = getRoomCompiled(bookingRooms[idx]);
+      if (!comp.priceLine) {
+        el.textContent = '請輸入金額或積分';
+        return;
+      }
+      const parsed = IHGApp.parsePriceString(comp.priceLine);
+      el.textContent = parsed.isPoints
+        ? `寫入格式：${comp.priceLine}（約 NT$ ${parsed.twd.toLocaleString()}）`
+        : `寫入格式：${comp.priceLine}（折合 NT$ ${parsed.twd.toLocaleString()}）`;
+    }
+
+    function renderBookingRooms() {
+      const container = document.getElementById('bookingRoomsContainer');
+      const addBtn = document.getElementById('addRoomBtn');
+      const checkInVal = document.getElementById('bfCheckIn').value || new Date().toISOString().slice(0, 10);
+      const baseYear = parseInt(checkInVal.slice(0, 4), 10) || new Date().getFullYear();
+      const nowYear = new Date().getFullYear();
+      const yearOptions = Array.from(new Set([nowYear - 1, nowYear, nowYear + 1, baseYear - 1, baseYear, baseYear + 1])).sort();
+
+      if (bookingRooms.length >= IHGApp.MAX_ROOMS_PER_EVENT) {
+        addBtn.classList.add('hidden');
+      } else {
+        addBtn.classList.remove('hidden');
+        addBtn.textContent = `＋ 新增第 ${bookingRooms.length + 1} 間房`;
+      }
+
+      container.innerHTML = bookingRooms.map((rm, idx) => {
+        const isEmp = Object.prototype.hasOwnProperty.call(IHGApp.EMPLOYEE_PLANS, rm.planType);
+        const isCustom = rm.planType === '__CUSTOM__';
+        return `
+          <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700">第 ${idx + 1} 間房（說明欄第 ${idx * 2 + 1}～${idx * 2 + 2} 行）</span>
+              ${bookingRooms.length > 1 ? `<button type="button" onclick="removeBookingRoom(${idx})" class="text-[11px] font-semibold text-rose-600 hover:underline">移除此房</button>` : ''}
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+              <div class="${isEmp ? 'sm:col-span-8' : 'sm:col-span-12'}">
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1">價格方案</label>
+                <select onchange="updateRoomField(${idx}, 'planType', this.value)" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm outline-none">
+                  ${IHGApp.PRESET_PLANS.map(p => `<option value="${p}" ${rm.planType === p ? 'selected' : ''}>${p}</option>`).join('')}
+                  <option value="__CUSTOM__" ${isCustom ? 'selected' : ''}>其他自訂方案...</option>
+                </select>
+              </div>
+              ${isEmp ? `
+                <div class="sm:col-span-4">
+                  <label class="block text-[11px] font-semibold text-slate-500 mb-1">扣抵額度年份</label>
+                  <select onchange="updateRoomField(${idx}, 'quotaYear', Number(this.value))" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-mono-num outline-none">
+                    ${yearOptions.map(y => `<option value="${y}" ${Number(rm.quotaYear) === y ? 'selected' : ''}>${y} 年 (-${y})</option>`).join('')}
+                  </select>
+                </div>
+              ` : ''}
+            </div>
+
+            ${isCustom ? `
+              <div>
+                <input type="text" value="${IHGApp.escapeHtml(rm.customPlan)}" placeholder="請輸入自訂方案名稱"
+                  oninput="updateRoomField(${idx}, 'customPlan', this.value)"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm outline-none" />
+              </div>
+            ` : ''}
+
+            <div class="grid grid-cols-12 gap-2.5">
+              <div class="col-span-5 sm:col-span-4">
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1">幣別 / 積分</label>
+                <select onchange="updateRoomField(${idx}, 'currency', this.value)" class="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs sm:text-sm font-mono-num outline-none">
+                  ${IHGApp.SUPPORTED_CURRENCIES.map(c => `<option value="${c}" ${rm.currency === c ? 'selected' : ''}>${c}</option>`).join('')}
+                  <option value="POINTS" ${rm.currency === 'POINTS' ? 'selected' : ''}>積分</option>
+                </select>
+              </div>
+              <div class="col-span-7 sm:col-span-8">
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1">金額 / 積分數值（純數字）</label>
+                <input type="number" step="any" min="0" required value="${IHGApp.escapeHtml(rm.amount)}" placeholder="例如：3314"
+                  oninput="updateRoomField(${idx}, 'amount', this.value)"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-mono-num outline-none" />
+              </div>
+            </div>
+
+            <div id="roomPreview_${idx}" class="text-[11px] font-mono-num text-slate-500"></div>
+          </div>
+        `;
+      }).join('');
+
+      bookingRooms.forEach((_, idx) => updateRoomPreviewText(idx));
+    }
+
+    function onBookingDateChanged(which) {
+      const inEl = document.getElementById('bfCheckIn');
+      const outEl = document.getElementById('bfCheckOut');
+      if (which === 'in' && inEl.value && (!outEl.value || outEl.value <= inEl.value)) {
+        outEl.value = IHGApp.addDaysIso(inEl.value, 1);
+      }
+      onBookingFormChanged();
+    }
+
+    function onBookingFormChanged() {
+      const hotel = document.getElementById('bfHotelName').value.trim();
+      document.getElementById('bfBrandPreview').innerHTML = IHGApp.buildBrandLogoHtml(hotel, 'sm');
+
+      const inVal = document.getElementById('bfCheckIn').value;
+      const outVal = document.getElementById('bfCheckOut').value;
+      const badge = document.getElementById('bfNightsBadge');
+      if (inVal && outVal && outVal > inVal) {
+        const diff = Math.round((new Date(outVal) - new Date(inVal)) / 86400000);
+        badge.textContent = `共 ${diff} 晚`;
+        badge.className = 'font-mono-num text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/70';
+      } else {
+        badge.textContent = '退房日須晚於入住日';
+        badge.className = 'font-mono-num text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200';
+      }
+
+      evaluateAutoMerge();
+    }
+
+    // 入口 A：即時偵測可併入的既有連續行程
+    function evaluateAutoMerge() {
+      const box = document.getElementById('autoMergeBox');
+      const chk = document.getElementById('autoMergeCheckbox');
+      const detail = document.getElementById('autoMergeDetail');
+      const editingId = document.getElementById('bfEventId').value;
+
+      if (editingId) {
+        detectedAutoMerge = null;
+        box.classList.add('hidden');
+        chk.checked = false;
+        return;
+      }
+
+      const hotel = document.getElementById('bfHotelName').value.trim();
+      const checkIn = document.getElementById('bfCheckIn').value;
+      const checkOut = document.getElementById('bfCheckOut').value;
+      if (!hotel || !checkIn || !checkOut || checkOut <= checkIn) {
+        detectedAutoMerge = null;
+        box.classList.add('hidden');
+        return;
+      }
+
+      const compiledRooms = bookingRooms.map(getRoomCompiled);
+      if (compiledRooms.some(r => !r.planLine || !r.priceLine)) {
+        detectedAutoMerge = null;
+        box.classList.add('hidden');
+        return;
+      }
+
+      const candidate = appData.rawBookingEvents.find(ev => {
+        if (ev.hotelName !== hotel) return false;
+        const isAdjacent = (ev.checkOut === checkIn) || (checkOut === ev.checkIn);
+        if (!isAdjacent) return false;
+        if (ev.rooms.length !== compiledRooms.length) return false;
+        return ev.rooms.every((rm, i) => {
+          const newCur = bookingRooms[i].currency;
+          const oldCur = rm.priceInfo.isPoints ? 'POINTS' : rm.priceInfo.currency;
+          return rm.planInfo.rawPlan === compiledRooms[i].planLine && oldCur === newCur;
+        });
+      });
+
+      if (!candidate) {
+        detectedAutoMerge = null;
+        box.classList.add('hidden');
+        chk.checked = false;
+        return;
+      }
+
+      const mergedCheckIn = candidate.checkIn < checkIn ? candidate.checkIn : checkIn;
+      const mergedCheckOut = candidate.checkOut > checkOut ? candidate.checkOut : checkOut;
+      const mergedLines = [];
+      const summaryParts = [];
+
+      candidate.rooms.forEach((rm, i) => {
+        const cur = bookingRooms[i].currency;
+        const sumAmt = Number(rm.priceInfo.rawAmount || 0) + Number(bookingRooms[i].amount || 0);
+        const priceStr = cur === 'POINTS'
+          ? `${Math.round(sumAmt)} 積分`
+          : (cur === 'TWD' ? `${Math.round(sumAmt)}元` : `${cur} ${Number(sumAmt.toFixed(2))}`);
+        mergedLines.push(rm.planInfo.rawPlan, priceStr);
+        summaryParts.push(`第${i + 1}間 ${priceStr}`);
+      });
+
+      detectedAutoMerge = {
+        targetEventId: candidate.id,
+        hotelName: hotel,
+        checkIn: mergedCheckIn,
+        checkOut: mergedCheckOut,
+        description: mergedLines.join('\n')
+      };
+
+      detail.textContent = `原行程 ${IHGApp.formatDateSlash(candidate.checkIn)}–${IHGApp.formatDateSlash(candidate.checkOut)} ➔ 合併後 ${IHGApp.formatDateSlash(mergedCheckIn)}–${IHGApp.formatDateSlash(mergedCheckOut)}（${summaryParts.join(' / ')}）`;
+      box.classList.remove('hidden');
+    }
+
+    function submitBookingForm(e) {
+      e.preventDefault();
+      const hotelName = document.getElementById('bfHotelName').value.trim();
+      const checkIn = document.getElementById('bfCheckIn').value;
+      const checkOut = document.getElementById('bfCheckOut').value;
+      const editingId = document.getElementById('bfEventId').value;
+      const sniperEventId = document.getElementById('bfSniperEventId').value;
+
+      if (!hotelName || !checkIn || !checkOut || checkOut <= checkIn) {
+        showToast('請確認飯店名稱與入住／退房日期', 'error');
+        return;
+      }
+
+      const lines = [];
+      for (let i = 0; i < bookingRooms.length; i++) {
+        const c = getRoomCompiled(bookingRooms[i]);
+        if (!c.planLine || !c.priceLine) {
+          showToast(`請完整填寫第 ${i + 1} 間房的方案與價格`, 'error');
+          return;
+        }
+        lines.push(c.planLine, c.priceLine);
+      }
+
+      const useAutoMerge = !editingId && detectedAutoMerge && document.getElementById('autoMergeCheckbox').checked;
+
+      runProtectedAction(async (pin) => {
+        const btn = document.getElementById('bfSubmitBtn');
+        btn.disabled = true;
+        btn.textContent = '寫入中...';
+        try {
+          if (editingId) {
+            const res = await IHGApp.postApi('updateBooking', {
+              eventId: editingId, hotelName, checkIn, checkOut, description: lines.join('\n')
+            }, pin);
+            showToast(res.message || '已更新訂房', 'success');
+          } else if (useAutoMerge) {
+            const res = await IHGApp.postApi('createBooking', {
+              mergeTargetEventId: detectedAutoMerge.targetEventId,
+              hotelName: detectedAutoMerge.hotelName,
+              checkIn: detectedAutoMerge.checkIn,
+              checkOut: detectedAutoMerge.checkOut,
+              description: detectedAutoMerge.description,
+              sniperEventId: sniperEventId || ''
+            }, pin);
+            showToast(res.message || '已合併寫入訂房', 'success');
+          } else {
+            const res = await IHGApp.postApi('createBooking', {
+              hotelName, checkIn, checkOut, description: lines.join('\n'),
+              sniperEventId: sniperEventId || ''
+            }, pin);
+            showToast(res.message || '已新增訂房', 'success');
+          }
+          resetBookingForm();
+          await IHGApp.refresh(true);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = document.getElementById('bfEventId').value ? '儲存修改' : '寫入共用日曆';
+        }
+      });
+    }
+
+    function editBooking(eventId) {
+      const ev = appData.rawBookingEvents.find(x => x.id === eventId);
+      if (!ev) return;
+
+      document.getElementById('bfEventId').value = ev.id;
+      document.getElementById('bfSniperEventId').value = '';
+      document.getElementById('conversionBanner').classList.add('hidden');
+      document.getElementById('bfHotelName').value = ev.hotelName;
+      document.getElementById('bfCheckIn').value = ev.checkIn;
+      document.getElementById('bfCheckOut').value = ev.checkOut;
+      document.getElementById('bookingFormTitle').textContent = '編輯既有訂房';
+      document.getElementById('bfSubmitBtn').textContent = '儲存修改';
+      document.getElementById('cancelBookingEditBtn').classList.remove('hidden');
+
+      bookingRooms = ev.rooms.map(rm => {
+        const isPreset = IHGApp.PRESET_PLANS.includes(rm.planInfo.basePlan);
+        return {
+          planType: isPreset ? rm.planInfo.basePlan : '__CUSTOM__',
+          customPlan: isPreset ? '' : rm.planInfo.rawPlan,
+          quotaYear: rm.planInfo.quotaYear,
+          currency: rm.priceInfo.isPoints ? 'POINTS' : rm.priceInfo.currency,
+          amount: String(rm.priceInfo.rawAmount)
+        };
+      });
+      renderBookingRooms();
+      onBookingFormChanged();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function confirmDeleteBooking(eventId) {
+      const ev = appData.rawBookingEvents.find(x => x.id === eventId);
+      if (!ev) return;
+      openConfirmModal(
+        '刪除正式訂房',
+        `確定要從「陳保志」共用日曆刪除「${ev.hotelName}」（${IHGApp.formatDateSlash(ev.checkIn)} – ${IHGApp.formatDateSlash(ev.checkOut)}，共 ${ev.rooms.length} 間房）嗎？`,
+        () => runProtectedAction(async (pin) => {
+          const res = await IHGApp.postApi('deleteBooking', { eventId }, pin);
+          showToast(res.message || '已刪除訂房', 'success');
+          if (document.getElementById('bfEventId').value === eventId) resetBookingForm();
+          await IHGApp.refresh(true);
+        })
+      );
+    }
+
+    // 入口 B：手動勾選合併連續行程
+    function toggleMergeMode(forceState = null) {
+      mergeModeActive = forceState !== null ? forceState : !mergeModeActive;
+      mergeSelectedIds.clear();
+      document.getElementById('mergeModeBar').classList.toggle('hidden', !mergeModeActive);
+      document.getElementById('toggleMergeModeBtn').textContent = mergeModeActive ? '退出合併模式' : '合併連續行程';
+      updateMergeBarState();
+      renderManageBookingsList();
+    }
+
+    function onToggleMergeCheckbox(eventId, checked) {
+      if (checked) mergeSelectedIds.add(eventId);
+      else mergeSelectedIds.delete(eventId);
+      updateMergeBarState();
+    }
+
+    function updateMergeBarState() {
+      document.getElementById('mergeSelectedCount').textContent = mergeSelectedIds.size;
+      document.getElementById('mergePreviewBtn').disabled = mergeSelectedIds.size < 2;
+    }
+
+    function openMergePreview() {
+      const selected = appData.rawBookingEvents
+        .filter(ev => mergeSelectedIds.has(ev.id))
+        .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+
+      if (selected.length < 2) return;
+
+      // 規則 1：同飯店
+      const hotelName = selected[0].hotelName;
+      if (selected.some(ev => ev.hotelName !== hotelName)) {
+        showToast('無法合併：所選行程必須為完全相同的飯店名稱', 'error');
+        return;
+      }
+
+      // 規則 2：日期首尾相連不中斷、不重疊
+      for (let i = 1; i < selected.length; i++) {
+        if (selected[i].checkIn !== selected[i - 1].checkOut) {
+          showToast(`無法合併：日期必須連續（${selected[i - 1].checkOut} 與 ${selected[i].checkIn} 未相連）`, 'error');
+          return;
+        }
+      }
+
+      // 規則 3 & 4：房數、每房方案＋扣抵年份、計價幣別一致
+      const roomCount = selected[0].rooms.length;
+      for (let i = 1; i < selected.length; i++) {
+        if (selected[i].rooms.length !== roomCount) {
+          showToast('無法合併：所選行程的房間數量不一致', 'error');
+          return;
+        }
+        for (let r = 0; r < roomCount; r++) {
+          const r0 = selected[0].rooms[r];
+          const ri = selected[i].rooms[r];
+          if (r0.planInfo.rawPlan !== ri.planInfo.rawPlan) {
+            showToast(`無法合併：第 ${r + 1} 間房的方案或扣抵年份不同（${r0.planInfo.rawPlan} vs ${ri.planInfo.rawPlan}）`, 'error');
+            return;
+          }
+          const c0 = r0.priceInfo.isPoints ? 'POINTS' : r0.priceInfo.currency;
+          const ci = ri.priceInfo.isPoints ? 'POINTS' : ri.priceInfo.currency;
+          if (c0 !== ci) {
+            showToast(`無法合併：第 ${r + 1} 間房的幣別／積分計價類型不同（${c0} vs ${ci}）`, 'error');
+            return;
+          }
+        }
+      }
+
+      const mergedCheckIn = selected[0].checkIn;
+      const mergedCheckOut = selected[selected.length - 1].checkOut;
+      const mergedRooms = [];
+
+      for (let r = 0; r < roomCount; r++) {
+        const baseRm = selected[0].rooms[r];
+        const cur = baseRm.priceInfo.isPoints ? 'POINTS' : baseRm.priceInfo.currency;
+        const sumAmt = selected.reduce((acc, ev) => acc + Number(ev.rooms[r].priceInfo.rawAmount || 0), 0);
+        mergedRooms.push({
+          planRaw: baseRm.planInfo.rawPlan,
+          currency: cur,
+          amount: cur === 'POINTS' || cur === 'TWD' ? Math.round(sumAmt) : Number(sumAmt.toFixed(2))
+        });
+      }
+
+      pendingMergePlan = {
+        primaryEventId: selected[0].id,
+        secondaryEventIds: selected.slice(1).map(ev => ev.id),
+        hotelName,
+        checkIn: mergedCheckIn,
+        checkOut: mergedCheckOut,
+        rooms: mergedRooms
+      };
+
+      document.getElementById('mergeModalSummary').textContent =
+        `${hotelName}｜將 ${selected.length} 筆行程合併為 ${IHGApp.formatDateSlash(mergedCheckIn)} – ${IHGApp.formatDateSlash(mergedCheckOut)}`;
+
+      document.getElementById('mergeModalRooms').innerHTML = mergedRooms.map((rm, idx) => `
+        <div class="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5">
+          <div class="text-xs font-bold text-slate-700">第 ${idx + 1} 間房：${IHGApp.escapeHtml(rm.planRaw)}</div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono-num text-slate-500">${rm.currency === 'POINTS' ? '積分' : rm.currency}</span>
+            <input type="number" step="any" min="0" id="mergeRoomAmt_${idx}" value="${rm.amount}"
+              class="flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono-num font-semibold outline-none" />
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('mergeModal').classList.remove('hidden');
+    }
+
+    function closeMergeModal() {
+      document.getElementById('mergeModal').classList.add('hidden');
+      pendingMergePlan = null;
+    }
+
+    function executeManualMerge() {
+      if (!pendingMergePlan) return;
+      const lines = [];
+      for (let i = 0; i < pendingMergePlan.rooms.length; i++) {
+        const rm = pendingMergePlan.rooms[i];
+        const amt = parseFloat(document.getElementById(`mergeRoomAmt_${i}`).value);
+        if (isNaN(amt) || amt < 0) {
+          showToast(`第 ${i + 1} 間房金額格式無效`, 'error');
+          return;
+        }
+        const priceStr = rm.currency === 'POINTS'
+          ? `${Math.round(amt)} 積分`
+          : (rm.currency === 'TWD' ? `${Math.round(amt)}元` : `${rm.currency} ${amt}`);
+        lines.push(rm.planRaw, priceStr);
+      }
+
+      runProtectedAction(async (pin) => {
+        const btn = document.getElementById('confirmMergeBtn');
+        btn.disabled = true;
+        btn.textContent = '合併中...';
+        try {
+          const res = await IHGApp.postApi('mergeBookings', {
+            primaryEventId: pendingMergePlan.primaryEventId,
+            secondaryEventIds: pendingMergePlan.secondaryEventIds,
+            hotelName: pendingMergePlan.hotelName,
+            checkIn: pendingMergePlan.checkIn,
+            checkOut: pendingMergePlan.checkOut,
+            description: lines.join('\n')
+          }, pin);
+          closeMergeModal();
+          toggleMergeMode(false);
+          showToast(res.message || '合併完成', 'success');
+          await IHGApp.refresh(true);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '確認執行合併';
+        }
+      });
+    }
+
+    function onManageYearChange() {
+      const yr = parseInt(document.getElementById('manageYearSelect').value, 10);
+      if (!isNaN(yr)) IHGApp.setYear(yr);
+    }
+
+    function renderManageBookingsList() {
+      const box = document.getElementById('manageBookingsList');
+      const q = (document.getElementById('manageBookingSearch').value || '').trim().toLowerCase();
+      const list = appData.rawBookingEvents.filter(ev => {
+        if (ev.stayYear !== appData.selectedYear) return false;
+        if (q && !ev.hotelName.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      document.getElementById('badgeBookingCount').textContent = list.length;
+
+      if (list.length === 0) {
+        box.innerHTML = `<div class="py-8 text-center text-sm text-slate-400">${appData.selectedYear} 年尚無符合條件的正式訂房紀錄</div>`;
+        return;
+      }
+
+      box.innerHTML = list.map(ev => {
+        const checked = mergeSelectedIds.has(ev.id) ? 'checked' : '';
+        return `
+          <div class="rounded-xl border ${checked ? 'border-indigo-400 bg-indigo-50/40' : 'border-slate-200/90 bg-white'} p-3.5 shadow-xs space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                ${mergeModeActive ? `<input type="checkbox" ${checked} onchange="onToggleMergeCheckbox('${IHGApp.escapeHtml(ev.id)}', this.checked)" class="w-4 h-4 rounded text-indigo-600 shrink-0" />` : ''}
+                ${IHGApp.buildBrandLogoHtml(ev.hotelName, 'sm')}
+                <div class="min-w-0">
+                  <div class="font-bold text-sm text-slate-800 break-words">${IHGApp.escapeHtml(ev.hotelName)}</div>
+                  <div class="font-mono-num text-xs text-slate-500 mt-0.5">
+                    ${IHGApp.formatDateSlash(ev.checkIn)} → ${IHGApp.formatDateSlash(ev.checkOut)}
+                    <span class="text-sky-700 font-semibold">（${ev.nights} 晚・${ev.rooms.length} 間房）</span>
+                  </div>
+                </div>
+              </div>
+              ${!mergeModeActive ? `
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button onclick="editBooking('${IHGApp.escapeHtml(ev.id)}')" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-sky-50 text-slate-700 hover:text-sky-700 text-xs font-semibold transition">編輯</button>
+                  <button onclick="confirmDeleteBooking('${IHGApp.escapeHtml(ev.id)}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition">刪除</button>
+                </div>
+              ` : ''}
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-2 border-t border-slate-100 text-xs">
+              ${ev.rooms.map((rm, idx) => {
+                const st = IHGApp.getPlanStyle(rm.planInfo.basePlan);
+                return `
+                  <div class="flex items-center justify-between gap-2 rounded-lg bg-slate-50/80 px-2.5 py-1.5 border border-slate-100">
+                    <span class="inline-flex items-center gap-1.5 truncate">
+                      <span class="w-1.5 h-1.5 rounded-full ${st.dot} shrink-0"></span>
+                      <span class="font-medium text-slate-700 truncate">${ev.rooms.length > 1 ? `房${idx + 1} ` : ''}${IHGApp.escapeHtml(rm.planInfo.rawPlan)}</span>
+                    </span>
+                    <span class="font-mono-num font-semibold text-slate-800 shrink-0">${IHGApp.escapeHtml(rm.priceInfo.display)}</span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 子分頁 2：180 天搶房提醒（無備註、連住自動拆日、轉訂房）
+    // =========================================================================
+    function pickSniperTz(tz) {
+      document.getElementById('sfTimeZone').value = tz;
+      updateSniperPreview();
+    }
+
+    function resetSniperForm() {
+      const defaultDate = IHGApp.addDaysIso(new Date().toISOString().slice(0, 10), 190);
+      document.getElementById('sfEventId').value = '';
+      document.getElementById('sfHotelName').value = '';
+      document.getElementById('sfCheckIn').value = defaultDate;
+      document.getElementById('sfNights').value = '1';
+      document.getElementById('sfNightsWrapper').classList.remove('hidden');
+      document.getElementById('sfTimeZone').value = 'Asia/Taipei';
+      document.getElementById('sniperFormTitle').textContent = '新增 180 天搶房提醒';
+      document.getElementById('sfSubmitBtn').textContent = '建立搶房提醒';
+      document.getElementById('cancelSniperEditBtn').classList.add('hidden');
+      updateSniperPreview();
+    }
+
+    function calcSniperSchedule(checkInIso, timeZone) {
+      const openLocalDate = IHGApp.subtractDaysIso(checkInIso, 180);
+      const openUtc = IHGApp.zonedMidnightToUtcDate(openLocalDate, timeZone);
+      const calStart = new Date(openUtc.getTime() - 15 * 60 * 1000);
+      const calEnd = new Date(openUtc.getTime() + 15 * 60 * 1000);
+      const pushDay = new Date(openUtc.getTime() - 24 * 60 * 60 * 1000);
+      const push15m = calStart;
+      return { openLocalDate, openUtc, calStart, calEnd, pushDay, push15m };
+    }
+
+    function updateSniperPreview() {
+      const hotel = document.getElementById('sfHotelName').value.trim();
+      document.getElementById('sfBrandPreview').innerHTML = IHGApp.buildBrandLogoHtml(hotel, 'sm');
+
+      const checkIn = document.getElementById('sfCheckIn').value;
+      const tz = document.getElementById('sfTimeZone').value;
+      const nights = document.getElementById('sfEventId').value ? 1 : (parseInt(document.getElementById('sfNights').value, 10) || 1);
+      const box = document.getElementById('sniperCalcPreview');
+
+      document.querySelectorAll('.tz-pill').forEach(btn => {
+        const match = btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${tz}'`);
+        btn.className = match
+          ? 'tz-pill px-2.5 py-1 rounded-lg text-xs font-bold border border-sky-400 bg-sky-50 text-sky-700'
+          : 'tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700';
+      });
+
+      if (!checkIn) {
+        box.innerHTML = `<div class="font-bold text-slate-600">請選擇預計入住日以即時換算台灣開搶時間</div>`;
+        return;
+      }
+
+      const first = calcSniperSchedule(checkIn, tz);
+      const startTimeStr = IHGApp.formatTaiwanDateTime(first.calStart);
+      const endTimeOnly = IHGApp.formatTaiwanDateTime(first.calEnd).slice(11);
+
+      let multiHtml = '';
+      if (nights > 1) {
+        const lastCheckIn = IHGApp.addDaysIso(checkIn, nights - 1);
+        const last = calcSniperSchedule(lastCheckIn, tz);
+        multiHtml = `
+          <div class="pt-2 border-t border-amber-200/70 text-amber-900 font-semibold">
+            📅 連住 ${nights} 晚將自動拆分建立 ${nights} 筆逐日提醒（入住 ${IHGApp.formatDateSlash(checkIn)} ～ ${IHGApp.formatDateSlash(lastCheckIn)}，最後開搶 ${IHGApp.formatTaiwanDateTime(last.openUtc)}）
+          </div>
+        `;
+      }
+
+      box.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="font-bold text-slate-800">⏰ 台灣開放時間（第 1 晚）</span>
+          <span class="font-mono-num text-sm font-bold text-amber-700">${IHGApp.formatTaiwanDateTime(first.openUtc)}</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] text-slate-600 font-mono-num">
+          <div>飯店當地 00:00：${IHGApp.formatDateSlash(first.openLocalDate)} 00:00</div>
+          <div>日曆行程區間：${startTimeStr} – ${endTimeOnly}</div>
+          <div>推播 ① 前一天預告：${IHGApp.formatTaiwanDateTime(first.pushDay)}</div>
+          <div>推播 ② 前 15 分鐘：${IHGApp.formatTaiwanDateTime(first.push15m)}</div>
+        </div>
+        ${multiHtml}
+      `;
+    }
+
+    function submitSniperForm(e) {
+      e.preventDefault();
+      const editingId = document.getElementById('sfEventId').value;
+      const hotelName = document.getElementById('sfHotelName').value.trim();
+      const checkIn = document.getElementById('sfCheckIn').value;
+      const timeZone = document.getElementById('sfTimeZone').value;
+      const nights = editingId ? 1 : (parseInt(document.getElementById('sfNights').value, 10) || 1);
+
+      if (!hotelName || !checkIn) {
+        showToast('請輸入飯店名稱與預計入住日', 'error');
+        return;
+      }
+
+      runProtectedAction(async (pin) => {
+        const btn = document.getElementById('sfSubmitBtn');
+        btn.disabled = true;
+        btn.textContent = '寫入中...';
+        try {
+          if (editingId) {
+            const calc = calcSniperSchedule(checkIn, timeZone);
+            const res = await IHGApp.postApi('updateSniper', {
+              eventId: editingId, hotelName, checkIn, timeZone, openIso: calc.openUtc.toISOString()
+            }, pin);
+            showToast(res.message || '已更新搶房提醒', 'success');
+          } else {
+            const items = [];
+            for (let i = 0; i < nights; i++) {
+              const ci = IHGApp.addDaysIso(checkIn, i);
+              const calc = calcSniperSchedule(ci, timeZone);
+              items.push({ hotelName, checkIn: ci, timeZone, openIso: calc.openUtc.toISOString() });
+            }
+            const res = await IHGApp.postApi('createSniper', { items }, pin);
+            showToast(res.message || '已建立搶房提醒', 'success');
+          }
+          resetSniperForm();
+          await IHGApp.refresh(true);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = document.getElementById('sfEventId').value ? '儲存修改' : '建立搶房提醒';
+        }
+      });
+    }
+
+    function editSniper(eventId) {
+      const s = appData.snipers.find(x => x.id === eventId);
+      if (!s) return;
+      document.getElementById('sfEventId').value = s.id;
+      document.getElementById('sfHotelName').value = s.hotelName;
+      document.getElementById('sfCheckIn').value = s.checkIn;
+      document.getElementById('sfTimeZone').value = s.timeZone || 'Asia/Taipei';
+      document.getElementById('sfNightsWrapper').classList.add('hidden');
+      document.getElementById('sniperFormTitle').textContent = '編輯搶房提醒';
+      document.getElementById('sfSubmitBtn').textContent = '儲存修改';
+      document.getElementById('cancelSniperEditBtn').classList.remove('hidden');
+      updateSniperPreview();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function confirmDeleteSniper(eventId) {
+      const s = appData.snipers.find(x => x.id === eventId);
+      if (!s) return;
+      openConfirmModal(
+        '刪除搶房提醒',
+        `確定要刪除「${s.hotelName}」（預計入住 ${IHGApp.formatDateSlash(s.checkIn)}）的搶房提醒並撤銷已預約的推播通知嗎？`,
+        () => runProtectedAction(async (pin) => {
+          const res = await IHGApp.postApi('deleteSniper', { eventId }, pin);
+          showToast(res.message || '已刪除搶房提醒', 'success');
+          if (document.getElementById('sfEventId').value === eventId) resetSniperForm();
+          await IHGApp.refresh(true);
+        })
+      );
+    }
+
+    // 一鍵轉正式訂房
+    function convertSniperToBooking(eventId) {
+      const s = appData.snipers.find(x => x.id === eventId);
+      if (!s) return;
+      resetBookingForm();
+      document.getElementById('bfSniperEventId').value = s.id;
+      document.getElementById('bfHotelName').value = s.hotelName;
+      if (s.checkIn) {
+        document.getElementById('bfCheckIn').value = s.checkIn;
+        document.getElementById('bfCheckOut').value = IHGApp.addDaysIso(s.checkIn, 1);
+      }
+      document.getElementById('conversionBannerText').textContent =
+        `正將「${s.hotelName}（${IHGApp.formatDateSlash(s.checkIn)}）」轉為正式訂房；送出後自動刪除原搶房提醒並撤銷推播。`;
+      document.getElementById('conversionBanner').classList.remove('hidden');
+      switchSubTab('booking');
+      onBookingFormChanged();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function formatCountdown(openIso) {
+      const diffMs = new Date(openIso).getTime() - Date.now();
+      if (diffMs <= 0) return { label: '已開放搶房', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+      const totalMins = Math.floor(diffMs / 60000);
+      const days = Math.floor(totalMins / 1440);
+      const hours = Math.floor((totalMins % 1440) / 60);
+      const mins = totalMins % 60;
+      if (days === 0 && hours < 3) {
+        return { label: `剩 ${hours} 時 ${mins} 分！`, cls: 'bg-rose-100 text-rose-700 border-rose-200 animate-pulse' };
+      }
+      if (days === 0) {
+        return { label: `今天開搶（剩 ${hours} 時）`, cls: 'bg-amber-100 text-amber-800 border-amber-200' };
+      }
+      return { label: `還有 ${days} 天 ${hours} 時`, cls: 'bg-sky-50 text-sky-700 border-sky-200' };
+    }
+
+    function renderSnipersList() {
+      const box = document.getElementById('sniperListContainer');
+      const list = appData.snipers || [];
+      document.getElementById('badgeSniperCount').textContent = list.length;
+
+      if (list.length === 0) {
+        box.innerHTML = `<div class="py-8 text-center text-sm text-slate-400">目前沒有待搶目標，可從上方表單建立 180 天搶房倒數</div>`;
+        return;
+      }
+
+      box.innerHTML = list.map(s => {
+        const cd = formatCountdown(s.openIso);
+        const pushCount = (s.pushDayId ? 1 : 0) + (s.push15mId ? 1 : 0);
+        const pushLabel = pushCount > 0
+          ? `<span class="text-emerald-600 font-semibold">🔔 已預約 ${pushCount} 則推播</span>`
+          : `<span class="text-slate-400">⏳ 待自動排程（開搶前 29 天內預約）</span>`;
+        return `
+          <div class="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-xs space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                ${IHGApp.buildBrandLogoHtml(s.hotelName, 'sm')}
+                <div class="min-w-0">
+                  <div class="font-bold text-sm text-slate-800 break-words">${IHGApp.escapeHtml(s.hotelName)}</div>
+                  <div class="font-mono-num text-xs text-slate-500 mt-0.5">
+                    目標入住：<strong class="text-slate-700">${IHGApp.formatDateSlash(s.checkIn)}</strong>
+                  </div>
+                </div>
+              </div>
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border shrink-0 font-mono-num ${cd.cls}">${cd.label}</span>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+              <div class="font-mono-num text-slate-700">
+                台灣開搶：<strong class="text-amber-700">${IHGApp.formatTaiwanDateTime(s.openIso)}</strong>
+                <span class="text-slate-400 ml-1">(${IHGApp.escapeHtml(s.timeZone)})</span>
+              </div>
+              <div>${pushLabel}</div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-end gap-2 pt-1">
+              <button onclick="convertSniperToBooking('${IHGApp.escapeHtml(s.id)}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition">
+                已搶到 → 轉正式訂房
+              </button>
+              <button onclick="editSniper('${IHGApp.escapeHtml(s.id)}')" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-sky-50 text-slate-700 text-xs font-semibold">編輯</button>
+              <button onclick="confirmDeleteSniper('${IHGApp.escapeHtml(s.id)}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold">刪除</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 子分頁 3：定向加倍活動管理
+    // =========================================================================
+    function resetPromoForm() {
+      const todayIso = new Date().toISOString().slice(0, 10);
+      document.getElementById('pfEventId').value = '';
+      document.getElementById('pfName').value = '';
+      document.getElementById('pfStartDate').value = todayIso;
+      document.getElementById('pfEndDate').value = IHGApp.addDaysIso(todayIso, 30);
+      document.getElementById('pfCap').value = '5';
+      document.getElementById('pfCap').disabled = false;
+      document.getElementById('pfUnlimited').checked = false;
+      document.getElementById('pfStatusOnly').checked = false;
+      document.getElementById('promoFormTitle').textContent = '新增定向加倍活動';
+      document.getElementById('pfSubmitBtn').textContent = '寫入「IHG活動」日曆';
+      document.getElementById('cancelPromoEditBtn').classList.add('hidden');
+    }
+
+    function submitPromoForm(e) {
+      e.preventDefault();
+      const eventId = document.getElementById('pfEventId').value;
+      const name = document.getElementById('pfName').value.trim();
+      const startDate = document.getElementById('pfStartDate').value;
+      const endDate = document.getElementById('pfEndDate').value;
+      const unlimited = document.getElementById('pfUnlimited').checked;
+      const cap = parseInt(document.getElementById('pfCap').value, 10) || 0;
+      const statusOnly = document.getElementById('pfStatusOnly').checked;
+
+      if (!name || !startDate || !endDate || endDate < startDate) {
+        showToast('請確認活動名稱與起迄日期', 'error');
+        return;
+      }
+
+      runProtectedAction(async (pin) => {
+        const btn = document.getElementById('pfSubmitBtn');
+        btn.disabled = true;
+        btn.textContent = '寫入中...';
+        try {
+          const action = eventId ? 'updatePromo' : 'createPromo';
+          const res = await IHGApp.postApi(action, { eventId, name, startDate, endDate, unlimited, cap, statusOnly }, pin);
+          showToast(res.message || '已儲存加倍活動', 'success');
+          resetPromoForm();
+          await IHGApp.refresh(true);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = document.getElementById('pfEventId').value ? '儲存修改' : '寫入「IHG活動」日曆';
+        }
+      });
+    }
+
+    function editPromo(eventId) {
+      const p = appData.promos.find(x => x.id === eventId);
+      if (!p) return;
+      document.getElementById('pfEventId').value = p.id;
+      document.getElementById('pfName').value = p.name;
+      document.getElementById('pfStartDate').value = p.startDate;
+      document.getElementById('pfEndDate').value = p.endDate;
+      document.getElementById('pfUnlimited').checked = p.unlimited;
+      document.getElementById('pfCap').disabled = p.unlimited;
+      document.getElementById('pfCap').value = p.unlimited ? '' : String(p.cap);
+      document.getElementById('pfStatusOnly').checked = p.statusOnly;
+      document.getElementById('promoFormTitle').textContent = '編輯定向加倍活動';
+      document.getElementById('pfSubmitBtn').textContent = '儲存修改';
+      document.getElementById('cancelPromoEditBtn').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function confirmDeletePromo(eventId) {
+      const p = appData.promos.find(x => x.id === eventId);
+      if (!p) return;
+      openConfirmModal(
+        '刪除定向加倍活動',
+        `確定要從「IHG活動」日曆刪除「${p.name}」（${IHGApp.formatDateSlash(p.startDate)} – ${IHGApp.formatDateSlash(p.endDate)}）嗎？`,
+        () => runProtectedAction(async (pin) => {
+          const res = await IHGApp.postApi('deletePromo', { eventId }, pin);
+          showToast(res.message || '已刪除加倍活動', 'success');
+          if (document.getElementById('pfEventId').value === eventId) resetPromoForm();
+          await IHGApp.refresh(true);
+        })
+      );
+    }
+
+    function renderManagePromosList() {
+      const box = document.getElementById('managePromosList');
+      const list = appData.promos || [];
+      document.getElementById('badgePromoCount').textContent = list.length;
+
+      if (list.length === 0) {
+        box.innerHTML = `<div class="py-8 text-center text-sm text-slate-400">目前同步範圍內尚無定向加倍活動</div>`;
+        return;
+      }
+
+      box.innerHTML = list.map(p => `
+        <div class="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="font-bold text-sm text-slate-800">${IHGApp.escapeHtml(p.name)}</div>
+            <div class="font-mono-num text-xs text-slate-500 mt-0.5">
+              ${IHGApp.formatDateSlash(p.startDate)} – ${IHGApp.formatDateSlash(p.endDate)}
+              <span class="mx-1 text-slate-300">|</span>
+              <span class="text-teal-700 font-semibold">${p.unlimited ? '無上限' : `上限 ${p.cap} 晚`}</span>
+              ${p.statusOnly ? '<span class="ml-1.5 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px]">僅會籍</span>' : ''}
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="editPromo('${IHGApp.escapeHtml(p.id)}')" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-sky-50 text-slate-700 text-xs font-semibold">編輯</button>
+            <button onclick="confirmDeletePromo('${IHGApp.escapeHtml(p.id)}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold">刪除</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // =========================================================================
+    // 初始化
+    // =========================================================================
+    function syncManageYearDropdown(selectedYear) {
+      const sel = document.getElementById('manageYearSelect');
+      if (!sel) return;
+      const nowYear = new Date().getFullYear();
+      const minY = Math.min(nowYear - 1, selectedYear);
+      const maxY = Math.max(nowYear + 5, selectedYear);
+      sel.innerHTML = '';
+      for (let y = minY; y <= maxY; y++) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = `${y} 年`;
+        sel.appendChild(opt);
+      }
+      sel.value = String(selectedYear);
+    }
+
+    function syncHotelDatalist() {
+      const dl = document.getElementById('hotelHistoryList');
+      if (!dl) return;
+      dl.innerHTML = IHGApp.getKnownHotels().map(h => `<option value="${IHGApp.escapeHtml(h)}"></option>`).join('');
+    }
+
+    IHGApp.init({
+      activePage: 'manage',
+      hideControls: true,
+      onRender(data) {
+        appData = data;
+        syncManageYearDropdown(data.selectedYear);
+        syncHotelDatalist();
+        renderManageBookingsList();
+        renderSnipersList();
+        renderManagePromosList();
+        evaluateAutoMerge();
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updatePinUI();
+      resetBookingForm();
+      resetSniperForm();
+      resetPromoForm();
+      initOneSignalClient();
+
+      const hash = (window.location.hash || '').replace('#', '');
+      if (['booking', 'sniper', 'promo'].includes(hash)) {
+        switchSubTab(hash);
+      }
+    });
+  </script>
+</body>
+</html>
