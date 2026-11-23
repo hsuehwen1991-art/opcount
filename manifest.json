@@ -1,0 +1,25 @@
+{
+  "name": "IHG Duo",
+  "short_name": "IHG Duo",
+  "description": "IHG 員工價住宿與會籍房晚統計儀表板",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f3f7fc",
+  "theme_color": "#f3f7fc",
+  "icons": [
+    {
+      "src": "./icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
