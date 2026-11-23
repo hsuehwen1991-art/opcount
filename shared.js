@@ -11,7 +11,7 @@
 
   const STORAGE_KEYS = {
     SELECTED_YEAR: 'ihg_duo_selected_year_v2',
-    RATES: 'ihg_duo_exchange_rates_v2',
+    RATES: 'ihg_duo_exchange_rates_v3',
     DATA_PREFIX: 'ihg_duo_calendar_cache_v3_'
   };
 
@@ -127,9 +127,39 @@
     chartColor: '#94a3b8'
   };
 
-  const CURRENCY_TOKEN = '(?:NT\\$|US\\$|HK\\$|SG\\$|TWD|USD|THB|VND|JPY|EUR|CNY|RMB|HKD|SGD|KRW|MYR|台幣|美金|美元|泰銖|越南盾|日圓|日幣|歐元|人民幣|港幣|新幣|韓元|馬幣|元|積分|點|pts?|points?|[\\$€¥฿₫₩])';
+  const CURRENCY_TOKEN = '(?:NT\\$|US\\$|HK\\$|SG\\$|AU\\$|CA\\$|NZ\\$|TWD|USD|THB|VND|JPY|EUR|CNY|RMB|HKD|SGD|KRW|MYR|GBP|AUD|CAD|NZD|CHF|MOP|PHP|IDR|台幣|美金|美元|泰銖|越南盾|日圓|日幣|歐元|人民幣|港幣|新幣|韓元|馬幣|英鎊|澳幣|加幣|紐幣|瑞士法郎|澳門幣|菲幣|披索|印尼盾|元|積分|點|pts?|points?|[\\$€£¥฿₫₩₱])';
   const PRICE_LINE_REGEX = new RegExp(`^${CURRENCY_TOKEN}?\\s*[\\d,]+(?:\\.\\d+)?\\s*${CURRENCY_TOKEN}?$`, 'i');
 
+  // 幣別判斷規則（具前綴的 $ 幣別與台幣排在通用 $ 之前，避免誤判）
+  const CURRENCY_MATCH_RULES = [
+    { code: 'TWD', regex: /NT\$|TWD|台幣/i },
+    { code: 'HKD', regex: /HK\$|HKD|港幣/i },
+    { code: 'SGD', regex: /SG\$|SGD|新幣/i },
+    { code: 'AUD', regex: /AU\$|AUD|澳幣/i },
+    { code: 'CAD', regex: /CA\$|CAD|加幣/i },
+    { code: 'NZD', regex: /NZ\$|NZD|紐幣/i },
+    { code: 'USD', regex: /US\$|USD|美金|美元|\$/i },
+    { code: 'THB', regex: /THB|฿|泰銖/i },
+    { code: 'VND', regex: /VND|₫|越南盾/i },
+    { code: 'CNY', regex: /CNY|RMB|人民幣/i },
+    { code: 'JPY', regex: /JPY|¥|日圓|日幣/i },
+    { code: 'EUR', regex: /EUR|€|歐元/i },
+    { code: 'GBP', regex: /GBP|£|英鎊/i },
+    { code: 'KRW', regex: /KRW|₩|韓元/i },
+    { code: 'MYR', regex: /MYR|馬幣/i },
+    { code: 'CHF', regex: /CHF|瑞士法郎/i },
+    { code: 'MOP', regex: /MOP|澳門幣/i },
+    { code: 'PHP', regex: /PHP|₱|菲幣|披索/i },
+    { code: 'IDR', regex: /IDR|印尼盾/i }
+  ];
+
+  // 頂部匯率列優先排列順序
+  const CURRENCY_DISPLAY_ORDER = [
+    'USD', 'JPY', 'THB', 'VND', 'KRW', 'EUR', 'GBP', 'CNY', 'HKD', 'SGD',
+    'MYR', 'AUD', 'CAD', 'NZD', 'CHF', 'MOP', 'PHP', 'IDR'
+  ];
+
+  // 內建備援預設匯率（1 外幣 = X 台幣，僅於 API 異常或逾時時啟用）
   const DEFAULT_RATES = {
     TWD: 1,
     USD: 32.0,
@@ -141,7 +171,15 @@
     HKD: 4.1,
     SGD: 23.8,
     KRW: 0.023,
-    MYR: 7.2
+    MYR: 7.2,
+    GBP: 40.5,
+    AUD: 21.0,
+    CAD: 23.2,
+    NZD: 19.2,
+    CHF: 36.2,
+    MOP: 3.98,
+    PHP: 0.56,
+    IDR: 0.00202
   };
 
   const state = {
@@ -149,6 +187,7 @@
     onRender: null,
     selectedYear: new Date().getFullYear(),
     exchangeRates: { ...DEFAULT_RATES },
+    ratesAreLive: false,
     allProcessedBookings: [],
     currentYearProcessed: [],
     occupiedDatesByYear: {},
@@ -268,6 +307,53 @@
   function formatShortSyncTime(fullTs) {
     const parts = String(fullTs || '').split(' ');
     return parts.length >= 2 ? parts[1].slice(0, 5) : fullTs;
+  }
+
+  function formatExchangeRateValue(rate) {
+    if (rate < 0.01) return rate.toFixed(5);
+    if (rate < 0.1) return rate.toFixed(4);
+    if (rate < 10) return rate.toFixed(3);
+    return rate.toFixed(2);
+  }
+
+  // 依當年度實際出現的外幣動態組裝頂部匯率列
+  function updateRateInfoDisplay() {
+    const rateInfoEl = document.getElementById('rateInfo');
+    if (!rateInfoEl) return;
+
+    const currencySet = new Set();
+    (state.currentYearProcessed || []).forEach(b => {
+      const cur = b && b.priceInfo && b.priceInfo.currency;
+      if (cur && cur !== 'TWD' && cur !== 'POINTS') {
+        currencySet.add(cur);
+      }
+    });
+
+    const usedCurrencies = Array.from(currencySet).sort((a, b) => {
+      const idxA = CURRENCY_DISPLAY_ORDER.indexOf(a);
+      const idxB = CURRENCY_DISPLAY_ORDER.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    const ptsPart = `1 積分 = ${POINTS_TO_TWD} TWD`;
+
+    if (usedCurrencies.length === 0) {
+      rateInfoEl.textContent = `當年度無外幣消費 ｜ ${ptsPart}`;
+      return;
+    }
+
+    const eqSign = state.ratesAreLive ? '≈' : '=';
+    const prefix = state.ratesAreLive ? '' : '預設匯率：';
+    const parts = usedCurrencies.map(cur => {
+      const rate = state.exchangeRates[cur] || DEFAULT_RATES[cur] || 1;
+      return `1 ${cur} ${eqSign} ${formatExchangeRateValue(rate)} TWD`;
+    });
+    parts.push(ptsPart);
+
+    rateInfoEl.textContent = `${prefix}${parts.join(' ｜ ')}`;
   }
 
   // =========================================================================
@@ -440,8 +526,6 @@
   // 匯率與 GAS API 通訊（含 sessionStorage 跨頁快取）
   // =========================================================================
   async function loadExchangeRates(forceRefresh = false, timeoutMs = 3500) {
-    const rateInfoEl = document.getElementById('rateInfo');
-
     if (!forceRefresh) {
       const cachedRaw = safeSessionGet(STORAGE_KEYS.RATES);
       if (cachedRaw) {
@@ -449,7 +533,7 @@
           const cached = JSON.parse(cachedRaw);
           if (cached && cached.rates) {
             state.exchangeRates = { ...DEFAULT_RATES, ...cached.rates };
-            if (rateInfoEl && cached.label) rateInfoEl.textContent = cached.label;
+            state.ratesAreLive = Boolean(cached.isLive);
             return;
           }
         } catch (_) {}
@@ -471,14 +555,17 @@
 
       const data = await res.json();
       if (data && data.result === 'success' && data.rates) {
-        ['USD', 'THB', 'VND', 'JPY', 'EUR', 'CNY', 'HKD', 'SGD', 'KRW', 'MYR'].forEach(cur => {
-          if (data.rates[cur]) {
-            state.exchangeRates[cur] = 1 / data.rates[cur];
+        const liveRates = { ...DEFAULT_RATES };
+        Object.keys(data.rates).forEach(cur => {
+          const val = data.rates[cur];
+          if (typeof val === 'number' && val > 0) {
+            liveRates[cur] = 1 / val;
           }
         });
-        const label = `1 USD ≈ ${state.exchangeRates.USD.toFixed(2)} TWD ｜ 1 THB ≈ ${state.exchangeRates.THB.toFixed(3)} TWD ｜ 1 積分 = 0.16 TWD`;
-        if (rateInfoEl) rateInfoEl.textContent = label;
-        safeSessionSet(STORAGE_KEYS.RATES, JSON.stringify({ rates: state.exchangeRates, label }));
+        liveRates.TWD = 1;
+        state.exchangeRates = liveRates;
+        state.ratesAreLive = true;
+        safeSessionSet(STORAGE_KEYS.RATES, JSON.stringify({ rates: state.exchangeRates, isLive: true }));
         return;
       }
     } catch (e) {
@@ -486,8 +573,8 @@
       console.warn('即時匯率取得失敗或逾時，改用內建預設匯率', e);
     }
 
-    const fallbackLabel = `預設匯率：1 USD = ${state.exchangeRates.USD.toFixed(2)} TWD ｜ 1 THB = ${state.exchangeRates.THB.toFixed(2)} TWD ｜ 1 積分 = 0.16 TWD`;
-    if (rateInfoEl) rateInfoEl.textContent = fallbackLabel;
+    state.exchangeRates = { ...DEFAULT_RATES };
+    state.ratesAreLive = false;
   }
 
   function jsonpRequest(url, timeoutMs = 20000) {
@@ -642,6 +729,16 @@
     return PRICE_LINE_REGEX.test(str);
   }
 
+  function detectCurrencyCode(rawPrice) {
+    const str = (rawPrice || '').trim();
+    for (const rule of CURRENCY_MATCH_RULES) {
+      if (rule.regex.test(str)) {
+        return rule.code;
+      }
+    }
+    return 'TWD';
+  }
+
   function parsePriceString(rawPrice) {
     const str = (rawPrice || '').trim();
     const ptsMatch = str.match(/([\d,]+)\s*(?:積分|點|pts?|points?)/i);
@@ -650,6 +747,7 @@
       const twd = Math.round(points * POINTS_TO_TWD);
       return {
         isPoints: true,
+        currency: 'POINTS',
         points,
         twd,
         display: `${points.toLocaleString()} 積分（約${twd.toLocaleString()}元）`
@@ -658,33 +756,13 @@
 
     const numMatch = str.match(/([\d,]+(?:\.\d+)?)/);
     const amount = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 0;
-
-    let rate = 1;
-    if (/US\$|USD|美金|美元|\$/i.test(str) && !/NT\$|TWD|HK\$|SG\$/i.test(str)) {
-      rate = state.exchangeRates.USD;
-    } else if (/THB|฿|泰銖/i.test(str)) {
-      rate = state.exchangeRates.THB;
-    } else if (/VND|₫|越南盾/i.test(str)) {
-      rate = state.exchangeRates.VND;
-    } else if (/JPY|¥|日圓|日幣/i.test(str)) {
-      rate = state.exchangeRates.JPY;
-    } else if (/EUR|€|歐元/i.test(str)) {
-      rate = state.exchangeRates.EUR;
-    } else if (/CNY|RMB|人民幣/i.test(str)) {
-      rate = state.exchangeRates.CNY;
-    } else if (/HK\$|HKD|港幣/i.test(str)) {
-      rate = state.exchangeRates.HKD;
-    } else if (/SG\$|SGD|新幣/i.test(str)) {
-      rate = state.exchangeRates.SGD;
-    } else if (/KRW|₩|韓元/i.test(str)) {
-      rate = state.exchangeRates.KRW;
-    } else if (/MYR|馬幣/i.test(str)) {
-      rate = state.exchangeRates.MYR;
-    }
-
+    const currency = detectCurrencyCode(str);
+    const rate = state.exchangeRates[currency] || DEFAULT_RATES[currency] || 1;
     const twd = Math.round(amount * rate);
+
     return {
       isPoints: false,
+      currency,
       points: 0,
       twd,
       display: `${twd.toLocaleString()} 元`
@@ -838,7 +916,6 @@
     const yearStartIso = `${selectedYear}-01-01`;
     const yearEndIso = `${selectedYear}-12-31`;
 
-    // 1. 解析【IHG活動】日曆中的結轉房晚與定向加倍活動
     let manualRollover = null;
     const promos = [];
 
@@ -851,7 +928,6 @@
       const displayEndDate = rawEnd > startDate ? subtractOneDay(rawEnd) : startDate;
       const startYear = parseInt(startDate.slice(0, 4), 10);
 
-      // (A) 結轉房晚標記：【會員等級結轉】xx晚 或 【IHG結轉】xx晚
       const rolloverMatch = title.match(/(?:會員等級結轉|IHG結轉)[\s】\]：:]*(\d+)\s*晚?/i);
       if (rolloverMatch) {
         if (startYear === selectedYear) {
@@ -860,7 +936,6 @@
         return;
       }
 
-      // (B) 定向加倍活動
       const isPromo = /(?:房晚加倍|雙倍房晚|IHG加倍|定向活動)/i.test(title);
       if (!isPromo) return;
       if (displayEndDate < yearStartIso || startDate > yearEndIso) return;
@@ -878,7 +953,6 @@
 
       const countsForMilestones = !/(?:僅會籍|僅計會籍|不含進階|不計進階)/.test(title + ' ' + desc);
 
-      // 計算落於活動期間內的實際入住定級房晚（每晚額外贈送 1 晚，至上限止）
       let matchedNights = 0;
       yearOccupiedDates.forEach(dStr => {
         if (dStr >= startDate && dStr <= displayEndDate) {
@@ -903,7 +977,6 @@
 
     promos.sort((a, b) => a.startDate.localeCompare(b.startDate));
 
-    // 2. 結轉房晚（日曆手動指定優先，否則依前一年實住自動結轉）
     let rolloverNights = 0;
     let rolloverNote = '無結轉房晚';
     if (manualRollover !== null) {
@@ -922,7 +995,6 @@
         : '無結轉房晚';
     }
 
-    // 3. 彙整雙軌總房晚
     let statusBonusNights = 0;
     let milestoneBonusNights = 0;
     promos.forEach(p => {
@@ -966,6 +1038,7 @@
   function triggerPageRender() {
     state.currentYearProcessed = state.allProcessedBookings.filter(b => b.stayYear === state.selectedYear);
     state.membership = computeMembership(state.selectedYear);
+    updateRateInfoDisplay();
 
     if (typeof state.onRender === 'function') {
       state.onRender({
