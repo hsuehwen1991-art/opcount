@@ -1,7 +1,7 @@
 // =========================================================================
-// IHG Duo - 共用核心模組 (shared.js v3.1 Liquid Glass Edition)
+// IHG Duo - 共用核心模組 (shared.js v3.2 Liquid Glass Edition)
 // 支援：最多 4 間房(8行)、雙軌會籍/獎勵計算、搶房提醒、雙向寫入 API、
-//       雙端 iOS Liquid Glass 導覽列、液態滑塊與跨頁滑動轉場 (View Transitions)
+//       雙端 iOS Liquid Glass 導覽列（高對比手機霧面膠囊）、液態滑塊與跨頁滑動轉場
 // =========================================================================
 (function (global) {
   'use strict';
@@ -367,7 +367,7 @@
   }
 
   // =========================================================================
-  // iOS Liquid Glass 樣式與跨頁滑動轉場（立即注入以確保 View Transition 生效）
+  // iOS Liquid Glass 樣式與跨頁滑動轉場
   // =========================================================================
   function injectLiquidGlassStyles() {
     if (document.getElementById('ihg-shared-styles')) return;
@@ -407,28 +407,28 @@
 
       /* 頂部頁首：Liquid Glass 透明層 */
       .lg-header {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(244, 250, 255, 0.54) 100%);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(244, 250, 255, 0.62) 100%);
         backdrop-filter: blur(26px) saturate(190%) brightness(1.03);
         -webkit-backdrop-filter: blur(26px) saturate(190%) brightness(1.03);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.78);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.82);
         box-shadow:
           0 8px 28px -12px rgba(15, 23, 42, 0.10),
           inset 0 -1px 0 rgba(14, 165, 233, 0.10);
         view-transition-name: ihg-header;
       }
 
-      /* 通用 Liquid Glass 懸浮膠囊容器（電腦頂部選單 & 手機底部功能列） */
+      /* 電腦版頂部 Liquid Glass 膠囊 */
       .lg-glass-capsule {
         position: relative;
         background: linear-gradient(
           180deg,
-          rgba(255, 255, 255, 0.56) 0%,
-          rgba(242, 248, 255, 0.34) 52%,
-          rgba(255, 255, 255, 0.48) 100%
+          rgba(255, 255, 255, 0.62) 0%,
+          rgba(242, 248, 255, 0.40) 52%,
+          rgba(255, 255, 255, 0.54) 100%
         );
         backdrop-filter: blur(28px) saturate(200%) brightness(1.05);
         -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.05);
-        border: 1px solid rgba(255, 255, 255, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.82);
         box-shadow:
           0 14px 36px -10px rgba(15, 23, 42, 0.16),
           0 4px 14px -4px rgba(14, 165, 233, 0.14),
@@ -447,6 +447,29 @@
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0) 100%);
         pointer-events: none;
         z-index: 0;
+      }
+
+      /* 手機版懸浮 Liquid Glass 膠囊：提高霧面不透明度，防止底層內容干擾按鈕辨識 */
+      .lg-mobile-dock {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.90) 0%,
+          rgba(244, 249, 255, 0.82) 52%,
+          rgba(255, 255, 255, 0.88) 100%
+        );
+        backdrop-filter: blur(30px) saturate(185%) brightness(1.02);
+        -webkit-backdrop-filter: blur(30px) saturate(185%) brightness(1.02);
+        border: 1px solid rgba(255, 255, 255, 0.96);
+        box-shadow:
+          0 14px 34px -8px rgba(15, 23, 42, 0.22),
+          0 4px 14px -4px rgba(14, 165, 233, 0.16),
+          0 0 0 1px rgba(148, 163, 184, 0.18),
+          inset 0 1.5px 1.5px rgba(255, 255, 255, 1),
+          inset 0 -1px 1.5px rgba(148, 163, 184, 0.24);
+      }
+
+      .lg-mobile-dock::before {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.70) 0%, rgba(255, 255, 255, 0) 100%);
       }
 
       .lg-desktop-nav {
@@ -477,9 +500,9 @@
         border-radius: 9999px;
         background: linear-gradient(
           180deg,
-          rgba(255, 255, 255, 0.72) 0%,
-          rgba(224, 242, 254, 0.38) 54%,
-          rgba(186, 230, 253, 0.46) 100%
+          rgba(255, 255, 255, 0.78) 0%,
+          rgba(224, 242, 254, 0.48) 54%,
+          rgba(186, 230, 253, 0.56) 100%
         );
         border: 1px solid rgba(255, 255, 255, 0.94);
         box-shadow:
@@ -493,6 +516,16 @@
 
       .lg-pill-mobile {
         border-radius: 22px;
+        background: linear-gradient(
+          180deg,
+          rgba(224, 242, 254, 0.96) 0%,
+          rgba(186, 230, 253, 0.78) 100%
+        );
+        border: 1px solid rgba(125, 211, 252, 0.72);
+        box-shadow:
+          0 4px 12px -3px rgba(14, 165, 233, 0.30),
+          inset 0 1.5px 1.5px rgba(255, 255, 255, 0.96),
+          inset 0 -1px 2px rgba(14, 165, 233, 0.20);
         view-transition-name: ihg-mobile-pill;
         transition: transform 0.4s var(--ihg-spring), box-shadow 0.25s ease;
       }
@@ -536,10 +569,10 @@
 
       /* 全站卡片微調：融入淺色 Liquid Glass 視覺 */
       .tech-card {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(248, 252, 255, 0.68) 100%) !important;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.80) 0%, rgba(248, 252, 255, 0.70) 100%) !important;
         backdrop-filter: blur(20px) saturate(175%) !important;
         -webkit-backdrop-filter: blur(20px) saturate(175%) !important;
-        border: 1px solid rgba(255, 255, 255, 0.84) !important;
+        border: 1px solid rgba(255, 255, 255, 0.86) !important;
         box-shadow:
           0 8px 28px -10px rgba(15, 23, 42, 0.08),
           0 2px 8px -2px rgba(14, 165, 233, 0.06),
@@ -667,7 +700,6 @@
     document.head.appendChild(style);
   }
 
-  // 立即注入樣式並預判轉場方向，確保 pagereveal 前規則已就位
   injectLiquidGlassStyles();
   (function primeInitialDirection() {
     const pending = readPendingTransition();
@@ -688,7 +720,6 @@
     return pending ? pending.dir : null;
   }
 
-  // 監聽原生跨頁 View Transitions 事件
   global.addEventListener('pageswap', (e) => {
     if (!e || !e.viewTransition) return;
     const dir = resolveDirFromActivation(e.activation);
@@ -710,7 +741,6 @@
         safeSessionRemove(STORAGE_KEYS.NAV_TRANSITION);
       });
     } else if (pending && !prefersReducedMotion()) {
-      // 瀏覽器未觸發原生轉場時，自動補播 JS 滑入與滑塊跟隨
       runFallbackEnterAnimation(pending);
       safeSessionRemove(STORAGE_KEYS.NAV_TRANSITION);
     } else {
@@ -728,7 +758,6 @@
       mainEl.classList.add(cls);
       mainEl.addEventListener('animationend', () => mainEl.classList.remove(cls), { once: true });
     }
-    // 讓滑塊從來源分頁滑向當前分頁
     const targetIdx = getNavIndexById(state.activePage);
     if (typeof pending.fromIdx === 'number' && pending.fromIdx !== targetIdx) {
       positionMobilePill(pending.fromIdx, false);
@@ -808,7 +837,6 @@
       link.dataset.lgBound = '1';
 
       link.addEventListener('click', (e) => {
-        // 保留 Ctrl/Cmd/中鍵 開新分頁等原生行為
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
 
         const targetId = link.getAttribute('data-nav-id');
@@ -818,7 +846,6 @@
         const fromIdx = getNavIndexById(state.activePage);
         const toIdx = getNavIndexById(targetId);
 
-        // 點擊目前所在分頁：平滑回頂部＋玻璃微彈（仿原生 iOS Tab Bar）
         if (targetId === state.activePage) {
           e.preventDefault();
           triggerActiveBounce();
@@ -836,12 +863,10 @@
         document.documentElement.dataset.navDir = dir;
         link.classList.add('is-tapped');
 
-        // 若支援原生跨頁 View Transitions，放行交由瀏覽器 120fps 同步滑移滑塊與頁面
         if (supportsCrossDocVT() && !prefersReducedMotion()) {
           return;
         }
 
-        // 舊版瀏覽器降級：先滑動液態滑塊與舊頁，再跳轉
         e.preventDefault();
         state.isNavigating = true;
 
@@ -862,7 +887,7 @@
   }
 
   // =========================================================================
-  // 共用導覽列（電腦頂部 Liquid Glass ＋ 手機底部懸浮 Liquid Glass）與控制列
+  // 共用導覽列（電腦頂部 Liquid Glass ＋ 手機底部高霧面懸浮 Liquid Glass）與控制列
   // =========================================================================
   function renderSharedChrome() {
     if (state.chromeRendered) return;
@@ -908,7 +933,7 @@
             </nav>
 
             <div class="flex items-center gap-2 shrink-0">
-              <div id="statusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/70 backdrop-blur-md text-sky-700 text-[11px] sm:text-xs font-medium font-mono-num border border-sky-200/80 shadow-2xs">
+              <div id="statusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/75 backdrop-blur-md text-sky-700 text-[11px] sm:text-xs font-medium font-mono-num border border-sky-200/80 shadow-2xs">
                 <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
                 <span>同步中...</span>
               </div>
@@ -924,7 +949,7 @@
       `;
     }
 
-    // 手機版懸浮 Liquid Glass 5 格底部功能列
+    // 手機版懸浮 Liquid Glass 5 格底部功能列（高霧面＋清晰按鈕對比）
     let bottomNav = document.getElementById('mobileBottomNav');
     if (!bottomNav) {
       bottomNav = document.createElement('nav');
@@ -934,21 +959,21 @@
     }
     bottomNav.className = 'md:hidden fixed bottom-0 inset-x-0 z-40 pointer-events-none px-3.5 safe-bottom-dock';
     bottomNav.innerHTML = `
-      <div id="mobileLiquidDock" class="pointer-events-auto lg-glass-capsule relative mx-auto max-w-md rounded-[28px] p-1.5">
+      <div id="mobileLiquidDock" class="pointer-events-auto lg-glass-capsule lg-mobile-dock relative mx-auto max-w-md rounded-[28px] p-1.5">
         <div class="lg-pill-track" aria-hidden="true">
           <div id="mobileLiquidPill" class="lg-pill lg-pill-mobile" style="width: ${100 / NAV_ITEMS.length}%; transform: translate3d(${activeIdx * 100}%, 0, 0);"></div>
         </div>
         <div class="relative z-10 grid grid-cols-5">
           ${NAV_ITEMS.map((item, idx) => {
             const isActive = item.id === state.activePage;
-            const colorCls = isActive ? 'text-sky-700 font-bold' : 'text-slate-600/85 hover:text-slate-900 font-medium';
+            const colorCls = isActive ? 'text-sky-700 font-bold' : 'text-slate-700 hover:text-slate-900 font-medium';
             return `
               <a data-nav-href="${item.href}" data-nav-id="${item.id}" data-nav-index="${idx}" href="${item.href}?year=${state.selectedYear}"
                  class="nav-link-item lg-nav-link flex flex-col items-center justify-center gap-0.5 py-2 rounded-[22px] ${colorCls}">
-                <svg class="w-[21px] h-[21px]" fill="none" stroke="currentColor" stroke-width="${isActive ? '2.25' : '1.85'}" viewBox="0 0 24 24">
+                <svg class="w-[21px] h-[21px]" fill="none" stroke="currentColor" stroke-width="${isActive ? '2.3' : '1.9'}" viewBox="0 0 24 24">
                   ${item.icon}
                 </svg>
-                <span class="text-[10.5px] leading-tight tracking-tight">${item.shortLabel}</span>
+                <span class="text-[11px] leading-tight tracking-tight">${item.shortLabel}</span>
               </a>
             `;
           }).join('')}
@@ -987,12 +1012,10 @@
 
     state.chromeRendered = true;
 
-    // 同步定位液態滑塊並綁定互動
     positionMobilePill(activeIdx, false);
     positionDesktopPill(activeIdx, false);
     bindLiquidNavInteractions();
 
-    // 視窗縮放或字型載入完成時自動校準電腦版滑塊寬度
     global.addEventListener('resize', () => {
       positionDesktopPill(getNavIndexById(state.activePage), false);
     });
@@ -1055,8 +1078,8 @@
     const badge = document.getElementById('statusBadge');
     if (!badge) return;
     const styles = {
-      loading: ['bg-white/70 text-sky-700 border-sky-200/80', 'bg-sky-500 animate-pulse'],
-      success: ['bg-emerald-50/80 text-emerald-700 border-emerald-200/80', 'bg-emerald-500'],
+      loading: ['bg-white/75 text-sky-700 border-sky-200/80', 'bg-sky-500 animate-pulse'],
+      success: ['bg-emerald-50/85 text-emerald-700 border-emerald-200/80', 'bg-emerald-500'],
       error: ['bg-amber-50/85 text-amber-800 border-amber-200/90', 'bg-amber-500']
     };
     const [boxCls, dotCls] = styles[type] || styles.loading;
@@ -1387,7 +1410,6 @@
 
       const hotelName = (ev.summary || '未命名飯店').trim();
       const checkInStr = ev.start.date;
-      // Google 日曆全天行程結束日為排他性（Exclusive End Date），須減 1 天還原實際退房日
       const checkOutStr = subtractDaysIso(ev.end.date, 1);
       const checkInYear = parseInt(checkInStr.slice(0, 4), 10);
       const dIn = parseLocalDate(checkInStr);
@@ -1659,7 +1681,7 @@
   }
 
   // =========================================================================
-  // 啟動流程（優先同步快取渲染，讓跨頁滑動進場時直接呈現完整數據）
+  // 啟動流程
   // =========================================================================
   async function startApp() {
     try {
@@ -1667,7 +1689,6 @@
       renderSharedChrome();
       initYearSelect(state.selectedYear);
 
-      // 不支援 onpagereveal 的舊瀏覽器，在此觸發滑入動畫
       if (!supportsCrossDocVT()) {
         const pending = readPendingTransition();
         if (pending && !prefersReducedMotion()) {
@@ -1676,7 +1697,6 @@
         safeSessionRemove(STORAGE_KEYS.NAV_TRANSITION);
       }
 
-      // 優先同步命中 sessionStorage 快取，確保 View Transition 截圖時頁面已有內容
       const ratesHit = hydrateRatesFromCacheSync();
       const dataHit = hydrateCalendarFromCacheSync();
 
@@ -1742,7 +1762,6 @@
       state.hideControls = Boolean(hideControls);
       state.onRender = onRender || null;
 
-      // 立即渲染 Liquid Glass 導覽列與滑塊，讓 pagereveal 能即時捕捉目標位置
       state.selectedYear = resolveInitialYear();
       if (document.getElementById('appHeader')) {
         renderSharedChrome();
