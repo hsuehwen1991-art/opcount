@@ -38,6 +38,66 @@
       border: 1px solid rgba(203, 213, 225, 0.78);
       box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(14, 165, 233, 0.04);
     }
+
+    /* 不透明滑動子分頁列（獨立樣式，不受 Liquid Glass 透明覆寫） */
+    .solid-subtab-bar {
+      position: relative;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 4px 16px -6px rgba(15, 23, 42, 0.08);
+    }
+
+    .solid-subtab-track {
+      position: absolute;
+      inset: 6px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .solid-subtab-pill {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: calc(100% / 3);
+      border-radius: 0.75rem;
+      background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+      box-shadow: 0 4px 12px -3px rgba(2, 132, 199, 0.45);
+      transition: transform 0.36s cubic-bezier(0.28, 1.24, 0.36, 1);
+      will-change: transform;
+    }
+
+    .solid-subtab-pill.is-instant {
+      transition: none !important;
+    }
+
+    .subtab-panels-stage {
+      overflow-x: clip;
+    }
+
+    .subtab-slide-from-right {
+      animation: subtabSlideInRight 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .subtab-slide-from-left {
+      animation: subtabSlideInLeft 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes subtabSlideInRight {
+      from { opacity: 0; transform: translate3d(28px, 0, 0); }
+      to   { opacity: 1; transform: translate3d(0, 0, 0); }
+    }
+
+    @keyframes subtabSlideInLeft {
+      from { opacity: 0; transform: translate3d(-28px, 0, 0); }
+      to   { opacity: 1; transform: translate3d(0, 0, 0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .solid-subtab-pill { transition: none !important; }
+      .subtab-slide-from-right,
+      .subtab-slide-from-left { animation: none !important; }
+    }
   </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen">
@@ -99,343 +159,349 @@
       </div>
     </section>
 
-    <!-- 子分頁切換：正式訂房 / 180 天搶房 / 定向加倍活動 -->
-    <section class="tech-card rounded-2xl p-1.5 grid grid-cols-3 gap-1.5">
-      <button id="tabBtn-booking" onclick="switchSubTab('booking')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 bg-sky-600 text-white shadow-sm">
-        <span>正式訂房</span>
-        <span id="badgeBookingCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-white/20">0</span>
-      </button>
-      <button id="tabBtn-sniper" onclick="switchSubTab('sniper')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-100">
-        <span>180 天搶房</span>
-        <span id="badgeSniperCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-600">0</span>
-      </button>
-      <button id="tabBtn-promo" onclick="switchSubTab('promo')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-100">
-        <span>加倍活動</span>
-        <span id="badgePromoCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-600">0</span>
-      </button>
+    <!-- 子分頁切換：正式訂房 / 180 天搶房 / 加倍活動（不透明實底滑動條） -->
+    <section class="solid-subtab-bar rounded-2xl p-1.5" role="tablist" aria-label="行程管理功能切換">
+      <div class="solid-subtab-track" aria-hidden="true">
+        <div id="subtabSliderPill" class="solid-subtab-pill" style="transform: translate3d(0%, 0, 0);"></div>
+      </div>
+      <div class="relative z-10 grid grid-cols-3">
+        <button id="tabBtn-booking" type="button" role="tab" aria-selected="true" onclick="switchSubTab('booking')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-white select-none">
+          <span>正式訂房</span>
+          <span id="badgeBookingCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-white/25 text-white transition-colors duration-200">0</span>
+        </button>
+        <button id="tabBtn-sniper" type="button" role="tab" aria-selected="false" onclick="switchSubTab('sniper')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 select-none">
+          <span>180 天搶房</span>
+          <span id="badgeSniperCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 transition-colors duration-200">0</span>
+        </button>
+        <button id="tabBtn-promo" type="button" role="tab" aria-selected="false" onclick="switchSubTab('promo')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 select-none">
+          <span>加倍活動</span>
+          <span id="badgePromoCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 transition-colors duration-200">0</span>
+        </button>
+      </div>
     </section>
 
-    <!-- =================================================================== -->
-    <!-- 子分頁 1：正式訂房管理（最多 4 間房 ＋ 即時併入 ＋ 勾選合併）         -->
-    <!-- =================================================================== -->
-    <div id="panel-booking" class="space-y-5">
+    <!-- 子分頁內容滑動舞台 -->
+    <div class="subtab-panels-stage">
 
-      <!-- 訂房表單卡 -->
-      <section class="tech-card rounded-2xl overflow-hidden">
-        <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-slate-50/60">
-          <div class="flex items-center gap-2">
-            <span class="w-1.5 h-4 rounded-full bg-sky-500"></span>
-            <h2 id="bookingFormTitle" class="text-sm sm:text-base font-bold text-slate-800">新增正式訂房</h2>
-          </div>
-          <button id="cancelBookingEditBtn" onclick="resetBookingForm()" class="hidden px-2.5 py-1 rounded-lg bg-slate-200/80 hover:bg-slate-200 text-slate-700 text-xs font-semibold">
-            取消編輯
-          </button>
-        </div>
+      <!-- =================================================================== -->
+      <!-- 子分頁 1：正式訂房管理（最多 4 間房 ＋ 即時併入 ＋ 勾選合併）         -->
+      <!-- =================================================================== -->
+      <div id="panel-booking" class="space-y-5">
 
-        <!-- 搶房轉訂房提示條 -->
-        <div id="conversionBanner" class="hidden mx-4 sm:mx-5 mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-2 text-xs text-emerald-800">
-          <div>
-            <span class="font-bold">🎯 搶房轉訂房模式：</span>
-            <span id="conversionBannerText">完成送出後將自動刪除原搶房提醒並撤銷剩餘推播。</span>
-          </div>
-          <button onclick="cancelConversionMode()" class="px-2 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-700 font-semibold shrink-0">取消轉換</button>
-        </div>
-
-        <form id="bookingForm" onsubmit="submitBookingForm(event)" class="p-4 sm:p-5 space-y-4">
-          <input type="hidden" id="bfEventId" value="" />
-          <input type="hidden" id="bfSniperEventId" value="" />
-
-          <!-- 飯店名稱 ＋ 品牌即時預覽 -->
-          <div>
-            <label for="bfHotelName" class="block text-xs font-semibold text-slate-600 mb-1.5">飯店名稱（可點選歷史快選避免錯字）</label>
-            <div class="flex items-center gap-2.5">
-              <div id="bfBrandPreview" class="shrink-0"></div>
-              <input id="bfHotelName" type="text" list="hotelHistoryList" required placeholder="例如：臺北洲際酒店"
-                oninput="onBookingFormChanged()"
-                class="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
+        <!-- 訂房表單卡 -->
+        <section class="tech-card rounded-2xl overflow-hidden">
+          <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-slate-50/60">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-sky-500"></span>
+              <h2 id="bookingFormTitle" class="text-sm sm:text-base font-bold text-slate-800">新增正式訂房</h2>
             </div>
+            <button id="cancelBookingEditBtn" onclick="resetBookingForm()" class="hidden px-2.5 py-1 rounded-lg bg-slate-200/80 hover:bg-slate-200 text-slate-700 text-xs font-semibold">
+              取消編輯
+            </button>
           </div>
 
-          <!-- 入住日 / 退房日 -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <!-- 搶房轉訂房提示條 -->
+          <div id="conversionBanner" class="hidden mx-4 sm:mx-5 mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-2 text-xs text-emerald-800">
             <div>
-              <label for="bfCheckIn" class="block text-xs font-semibold text-slate-600 mb-1.5">入住日</label>
-              <input id="bfCheckIn" type="date" required onchange="onBookingDateChanged('in')"
-                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
+              <span class="font-bold">🎯 搶房轉訂房模式：</span>
+              <span id="conversionBannerText">完成送出後將自動刪除原搶房提醒並撤銷剩餘推播。</span>
             </div>
+            <button onclick="cancelConversionMode()" class="px-2 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-700 font-semibold shrink-0">取消轉換</button>
+          </div>
+
+          <form id="bookingForm" onsubmit="submitBookingForm(event)" class="p-4 sm:p-5 space-y-4">
+            <input type="hidden" id="bfEventId" value="" />
+            <input type="hidden" id="bfSniperEventId" value="" />
+
+            <!-- 飯店名稱 ＋ 品牌即時預覽 -->
             <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <label for="bfCheckOut" class="text-xs font-semibold text-slate-600">退房日</label>
-                <span id="bfNightsBadge" class="font-mono-num text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/70">共 1 晚</span>
+              <label for="bfHotelName" class="block text-xs font-semibold text-slate-600 mb-1.5">飯店名稱（可點選歷史快選避免錯字）</label>
+              <div class="flex items-center gap-2.5">
+                <div id="bfBrandPreview" class="shrink-0"></div>
+                <input id="bfHotelName" type="text" list="hotelHistoryList" required placeholder="例如：臺北洲際酒店"
+                  oninput="onBookingFormChanged()"
+                  class="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
               </div>
-              <input id="bfCheckOut" type="date" required onchange="onBookingDateChanged('out')"
-                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
             </div>
-          </div>
 
-          <!-- 動態房間區（1 ~ 4 間房） -->
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-slate-600">房間方案與價格（最多支援 4 間房）</span>
-              <button type="button" id="addRoomBtn" onclick="addBookingRoom()" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-semibold transition">
-                ＋ 新增第 2 間房
+            <!-- 入住日 / 退房日 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label for="bfCheckIn" class="block text-xs font-semibold text-slate-600 mb-1.5">入住日</label>
+                <input id="bfCheckIn" type="date" required onchange="onBookingDateChanged('in')"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label for="bfCheckOut" class="text-xs font-semibold text-slate-600">退房日</label>
+                  <span id="bfNightsBadge" class="font-mono-num text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/70">共 1 晚</span>
+                </div>
+                <input id="bfCheckOut" type="date" required onchange="onBookingDateChanged('out')"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
+              </div>
+            </div>
+
+            <!-- 動態房間區（1 ~ 4 間房） -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-600">房間方案與價格（最多支援 4 間房）</span>
+                <button type="button" id="addRoomBtn" onclick="addBookingRoom()" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-semibold transition">
+                  ＋ 新增第 2 間房
+                </button>
+              </div>
+              <div id="bookingRoomsContainer" class="space-y-3"></div>
+            </div>
+
+            <!-- 入口 A：即時偵測連續行程併入建議 -->
+            <div id="autoMergeBox" class="hidden rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 space-y-2">
+              <label class="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" id="autoMergeCheckbox" class="mt-0.5 w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
+                <div class="text-xs text-indigo-900 leading-relaxed">
+                  <div class="font-bold">🔗 偵測到可合併的連續訂房行程！</div>
+                  <div id="autoMergeDetail" class="text-indigo-700 mt-0.5"></div>
+                </div>
+              </label>
+            </div>
+
+            <div class="flex items-center justify-end gap-2.5 pt-2">
+              <button type="button" onclick="resetBookingForm()" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold transition">
+                重設表單
+              </button>
+              <button type="submit" id="bfSubmitBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-500 hover:to-cyan-500 text-white text-sm font-bold shadow-sm shadow-sky-500/25 transition disabled:opacity-50">
+                寫入共用日曆
               </button>
             </div>
-            <div id="bookingRoomsContainer" class="space-y-3"></div>
-          </div>
+          </form>
+        </section>
 
-          <!-- 入口 A：即時偵測連續行程併入建議 -->
-          <div id="autoMergeBox" class="hidden rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 space-y-2">
-            <label class="flex items-start gap-2.5 cursor-pointer">
-              <input type="checkbox" id="autoMergeCheckbox" class="mt-0.5 w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
-              <div class="text-xs text-indigo-900 leading-relaxed">
-                <div class="font-bold">🔗 偵測到可合併的連續訂房行程！</div>
-                <div id="autoMergeDetail" class="text-indigo-700 mt-0.5"></div>
-              </div>
-            </label>
-          </div>
-
-          <div class="flex items-center justify-end gap-2.5 pt-2">
-            <button type="button" onclick="resetBookingForm()" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold transition">
-              重設表單
-            </button>
-            <button type="submit" id="bfSubmitBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-500 hover:to-cyan-500 text-white text-sm font-bold shadow-sm shadow-sky-500/25 transition disabled:opacity-50">
-              寫入共用日曆
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <!-- 既有正式訂房管理清單（含入口 B：勾選合併連續行程） -->
-      <section class="tech-card rounded-2xl overflow-hidden">
-        <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
-          <div>
-            <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
-              <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
-              已建立的正式訂房清單
-            </h2>
-            <p class="text-xs text-slate-500 mt-0.5">同步自共用日曆「陳保志」，修改與刪除皆即時寫回</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <select id="manageYearSelect" onchange="onManageYearChange()" class="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none"></select>
-            <input id="manageBookingSearch" type="search" placeholder="篩選飯店..." oninput="renderManageBookingsList()"
-              class="flex-1 sm:w-40 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/40" />
-            <button id="toggleMergeModeBtn" onclick="toggleMergeMode()" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition">
-              合併連續行程
-            </button>
-          </div>
-        </div>
-
-        <!-- 合併模式操作列 -->
-        <div id="mergeModeBar" class="hidden px-4 sm:px-5 py-3 bg-indigo-50 border-b border-indigo-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div class="text-indigo-800 font-medium">
-            請勾選 2 筆以上「同飯店、日期連續、房數與方案相同」的訂房（已選 <strong id="mergeSelectedCount" class="font-mono-num">0</strong> 筆）
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="toggleMergeMode(false)" class="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-slate-600 font-semibold">取消</button>
-            <button onclick="openMergePreview()" id="mergePreviewBtn" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold disabled:opacity-40" disabled>
-              預覽並合併
-            </button>
-          </div>
-        </div>
-
-        <div id="manageBookingsList" class="p-4 space-y-3"></div>
-      </section>
-    </div>
-
-    <!-- =================================================================== -->
-    <!-- 子分頁 2：180 天搶房提醒（無備註、支援連住拆日、時區換算、轉訂房）    -->
-    <!-- =================================================================== -->
-    <div id="panel-sniper" class="hidden space-y-5">
-      <section class="tech-card rounded-2xl overflow-hidden">
-        <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-slate-50/60">
-          <div class="flex items-center gap-2">
-            <span class="w-1.5 h-4 rounded-full bg-amber-500"></span>
-            <h2 id="sniperFormTitle" class="text-sm sm:text-base font-bold text-slate-800">新增 180 天搶房提醒</h2>
-          </div>
-          <button id="cancelSniperEditBtn" onclick="resetSniperForm()" class="hidden px-2.5 py-1 rounded-lg bg-slate-200/80 text-slate-700 text-xs font-semibold">
-            取消編輯
-          </button>
-        </div>
-
-        <form id="sniperForm" onsubmit="submitSniperForm(event)" class="p-4 sm:p-5 space-y-4">
-          <input type="hidden" id="sfEventId" value="" />
-
-          <div>
-            <label for="sfHotelName" class="block text-xs font-semibold text-slate-600 mb-1.5">目標飯店名稱</label>
-            <div class="flex items-center gap-2.5">
-              <div id="sfBrandPreview" class="shrink-0"></div>
-              <input id="sfHotelName" type="text" list="hotelHistoryList" required placeholder="例如：東京全日空洲際酒店"
-                oninput="updateSniperPreview()"
-                class="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium focus:ring-2 focus:ring-amber-500/40 focus:border-amber-400 outline-none" />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <!-- 既有正式訂房管理清單（含入口 B：勾選合併連續行程） -->
+        <section class="tech-card rounded-2xl overflow-hidden">
+          <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
             <div>
-              <label for="sfCheckIn" class="block text-xs font-semibold text-slate-600 mb-1.5">預計入住日（第 1 晚）</label>
-              <input id="sfCheckIn" type="date" required onchange="updateSniperPreview()"
-                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-amber-500/40 outline-none" />
+              <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
+                已建立的正式訂房清單
+              </h2>
+              <p class="text-xs text-slate-500 mt-0.5">同步自共用日曆「陳保志」，修改與刪除皆即時寫回</p>
             </div>
-            <div id="sfNightsWrapper">
-              <label for="sfNights" class="block text-xs font-semibold text-slate-600 mb-1.5">預計連住晚數（自動拆成逐日提醒）</label>
-              <select id="sfNights" onchange="updateSniperPreview()"
-                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-800 outline-none">
-                <option value="1">1 晚（單日提醒）</option>
-                <option value="2">2 晚（自動建立 2 筆逐日提醒）</option>
-                <option value="3">3 晚（自動建立 3 筆逐日提醒）</option>
-                <option value="4">4 晚（自動建立 4 筆逐日提醒）</option>
-                <option value="5">5 晚（自動建立 5 筆逐日提醒）</option>
-                <option value="6">6 晚（自動建立 6 筆逐日提醒）</option>
-                <option value="7">7 晚（自動建立 7 筆逐日提醒）</option>
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <select id="manageYearSelect" onchange="onManageYearChange()" class="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none"></select>
+              <input id="manageBookingSearch" type="search" placeholder="篩選飯店..." oninput="renderManageBookingsList()"
+                class="flex-1 sm:w-40 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/40" />
+              <button id="toggleMergeModeBtn" onclick="toggleMergeMode()" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition">
+                合併連續行程
+              </button>
+            </div>
+          </div>
+
+          <!-- 合併模式操作列 -->
+          <div id="mergeModeBar" class="hidden px-4 sm:px-5 py-3 bg-indigo-50 border-b border-indigo-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="text-indigo-800 font-medium">
+              請勾選 2 筆以上「同飯店、日期連續、房數與方案相同」的訂房（已選 <strong id="mergeSelectedCount" class="font-mono-num">0</strong> 筆）
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="toggleMergeMode(false)" class="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-slate-600 font-semibold">取消</button>
+              <button onclick="openMergePreview()" id="mergePreviewBtn" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold disabled:opacity-40" disabled>
+                預覽並合併
+              </button>
+            </div>
+          </div>
+
+          <div id="manageBookingsList" class="p-4 space-y-3"></div>
+        </section>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- 子分頁 2：180 天搶房提醒（無備註、支援連住拆日、時區換算、轉訂房）    -->
+      <!-- =================================================================== -->
+      <div id="panel-sniper" class="hidden space-y-5">
+        <section class="tech-card rounded-2xl overflow-hidden">
+          <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-slate-50/60">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-amber-500"></span>
+              <h2 id="sniperFormTitle" class="text-sm sm:text-base font-bold text-slate-800">新增 180 天搶房提醒</h2>
+            </div>
+            <button id="cancelSniperEditBtn" onclick="resetSniperForm()" class="hidden px-2.5 py-1 rounded-lg bg-slate-200/80 text-slate-700 text-xs font-semibold">
+              取消編輯
+            </button>
+          </div>
+
+          <form id="sniperForm" onsubmit="submitSniperForm(event)" class="p-4 sm:p-5 space-y-4">
+            <input type="hidden" id="sfEventId" value="" />
+
+            <div>
+              <label for="sfHotelName" class="block text-xs font-semibold text-slate-600 mb-1.5">目標飯店名稱</label>
+              <div class="flex items-center gap-2.5">
+                <div id="sfBrandPreview" class="shrink-0"></div>
+                <input id="sfHotelName" type="text" list="hotelHistoryList" required placeholder="例如：東京全日空洲際酒店"
+                  oninput="updateSniperPreview()"
+                  class="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium focus:ring-2 focus:ring-amber-500/40 focus:border-amber-400 outline-none" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label for="sfCheckIn" class="block text-xs font-semibold text-slate-600 mb-1.5">預計入住日（第 1 晚）</label>
+                <input id="sfCheckIn" type="date" required onchange="updateSniperPreview()"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-amber-500/40 outline-none" />
+              </div>
+              <div id="sfNightsWrapper">
+                <label for="sfNights" class="block text-xs font-semibold text-slate-600 mb-1.5">預計連住晚數（自動拆成逐日提醒）</label>
+                <select id="sfNights" onchange="updateSniperPreview()"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-800 outline-none">
+                  <option value="1">1 晚（單日提醒）</option>
+                  <option value="2">2 晚（自動建立 2 筆逐日提醒）</option>
+                  <option value="3">3 晚（自動建立 3 筆逐日提醒）</option>
+                  <option value="4">4 晚（自動建立 4 筆逐日提醒）</option>
+                  <option value="5">5 晚（自動建立 5 筆逐日提醒）</option>
+                  <option value="6">6 晚（自動建立 6 筆逐日提醒）</option>
+                  <option value="7">7 晚（自動建立 7 筆逐日提醒）</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 飯店所在時區（保留 3 顆常用快選按鈕 ＋ 完整下拉） -->
+            <div class="space-y-2">
+              <label for="sfTimeZone" class="block text-xs font-semibold text-slate-600">飯店所在時區（以當地 00:00 開放反推台灣時間）</label>
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" data-tz-group="Asia/Taipei" onclick="pickSniperTz('Asia/Taipei')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700 transition">台灣 UTC+8</button>
+                <button type="button" data-tz-group="Asia/Tokyo,Asia/Seoul" onclick="pickSniperTz('Asia/Tokyo')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700 transition">日本/韓國 UTC+9</button>
+                <button type="button" data-tz-group="Asia/Bangkok,Asia/Ho_Chi_Minh" onclick="pickSniperTz('Asia/Bangkok')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700 transition">泰國/越南 UTC+7</button>
+              </div>
+              <select id="sfTimeZone" onchange="updateSniperPreview()" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 outline-none">
+                <optgroup label="亞洲（常用）">
+                  <option value="Asia/Taipei">台灣 — Asia/Taipei (UTC+8)</option>
+                  <option value="Asia/Tokyo">日本 — Asia/Tokyo (UTC+9)</option>
+                  <option value="Asia/Seoul">韓國 — Asia/Seoul (UTC+9)</option>
+                  <option value="Asia/Bangkok">泰國 — Asia/Bangkok (UTC+7)</option>
+                  <option value="Asia/Ho_Chi_Minh">越南 — Asia/Ho_Chi_Minh (UTC+7)</option>
+                  <option value="Asia/Singapore">新加坡 — Asia/Singapore (UTC+8)</option>
+                  <option value="Asia/Hong_Kong">香港/澳門 — Asia/Hong_Kong (UTC+8)</option>
+                  <option value="Asia/Kuala_Lumpur">馬來西亞 — Asia/Kuala_Lumpur (UTC+8)</option>
+                  <option value="Asia/Makassar">峇里島 — Asia/Makassar (UTC+8)</option>
+                  <option value="Asia/Jakarta">雅加達 — Asia/Jakarta (UTC+7)</option>
+                  <option value="Asia/Shanghai">中國大陸 — Asia/Shanghai (UTC+8)</option>
+                  <option value="Asia/Dubai">杜拜 — Asia/Dubai (UTC+4)</option>
+                </optgroup>
+                <optgroup label="大洋洲">
+                  <option value="Australia/Sydney">雪梨 — Australia/Sydney</option>
+                  <option value="Australia/Melbourne">墨爾本 — Australia/Melbourne</option>
+                  <option value="Pacific/Auckland">奧克蘭 — Pacific/Auckland</option>
+                  <option value="Pacific/Honolulu">夏威夷 — Pacific/Honolulu</option>
+                </optgroup>
+                <optgroup label="歐洲（自動處理夏令時間）">
+                  <option value="Europe/London">倫敦 — Europe/London</option>
+                  <option value="Europe/Paris">巴黎/法蘭克福/米蘭 — Europe/Paris</option>
+                  <option value="Europe/Zurich">蘇黎世 — Europe/Zurich</option>
+                  <option value="Europe/Athens">雅典 — Europe/Athens</option>
+                </optgroup>
+                <optgroup label="美洲（自動處理夏令時間）">
+                  <option value="America/New_York">紐約/美東 — America/New_York</option>
+                  <option value="America/Chicago">芝加哥/美中 — America/Chicago</option>
+                  <option value="America/Los_Angeles">洛杉磯/舊金山 — America/Los_Angeles</option>
+                  <option value="America/Vancouver">溫哥華 — America/Vancouver</option>
+                </optgroup>
               </select>
             </div>
-          </div>
 
-          <!-- 飯店所在時區（快選 ＋ 完整下拉） -->
-          <div class="space-y-2">
-            <label for="sfTimeZone" class="block text-xs font-semibold text-slate-600">飯店所在時區（以當地 00:00 開放反推台灣時間）</label>
-            <div class="flex flex-wrap gap-1.5">
-              <button type="button" onclick="pickSniperTz('Asia/Taipei')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">台灣 UTC+8</button>
-              <button type="button" onclick="pickSniperTz('Asia/Tokyo')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">日本/韓國 UTC+9</button>
-              <button type="button" onclick="pickSniperTz('Asia/Bangkok')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">泰國/越南 UTC+7</button>
-              <button type="button" onclick="pickSniperTz('Asia/Singapore')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">新加坡/港澳 UTC+8</button>
-              <button type="button" onclick="pickSniperTz('Europe/London')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">英國</button>
-              <button type="button" onclick="pickSniperTz('Europe/Paris')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">歐洲中部</button>
-              <button type="button" onclick="pickSniperTz('America/Los_Angeles')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700">美西</button>
+            <!-- 即時換算結果預覽 -->
+            <div id="sniperCalcPreview" class="rounded-2xl bg-gradient-to-br from-amber-50/90 to-sky-50/70 border border-amber-200/80 p-4 space-y-2 text-xs">
+              <div class="font-bold text-slate-700">請選擇預計入住日以即時換算台灣開搶時間</div>
             </div>
-            <select id="sfTimeZone" onchange="updateSniperPreview()" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 outline-none">
-              <optgroup label="亞洲（常用）">
-                <option value="Asia/Taipei">台灣 — Asia/Taipei (UTC+8)</option>
-                <option value="Asia/Tokyo">日本 — Asia/Tokyo (UTC+9)</option>
-                <option value="Asia/Seoul">韓國 — Asia/Seoul (UTC+9)</option>
-                <option value="Asia/Bangkok">泰國 — Asia/Bangkok (UTC+7)</option>
-                <option value="Asia/Ho_Chi_Minh">越南 — Asia/Ho_Chi_Minh (UTC+7)</option>
-                <option value="Asia/Singapore">新加坡 — Asia/Singapore (UTC+8)</option>
-                <option value="Asia/Hong_Kong">香港/澳門 — Asia/Hong_Kong (UTC+8)</option>
-                <option value="Asia/Kuala_Lumpur">馬來西亞 — Asia/Kuala_Lumpur (UTC+8)</option>
-                <option value="Asia/Makassar">峇里島 — Asia/Makassar (UTC+8)</option>
-                <option value="Asia/Jakarta">雅加達 — Asia/Jakarta (UTC+7)</option>
-                <option value="Asia/Shanghai">中國大陸 — Asia/Shanghai (UTC+8)</option>
-                <option value="Asia/Dubai">杜拜 — Asia/Dubai (UTC+4)</option>
-              </optgroup>
-              <optgroup label="大洋洲">
-                <option value="Australia/Sydney">雪梨 — Australia/Sydney</option>
-                <option value="Australia/Melbourne">墨爾本 — Australia/Melbourne</option>
-                <option value="Pacific/Auckland">奧克蘭 — Pacific/Auckland</option>
-                <option value="Pacific/Honolulu">夏威夷 — Pacific/Honolulu</option>
-              </optgroup>
-              <optgroup label="歐洲（自動處理夏令時間）">
-                <option value="Europe/London">倫敦 — Europe/London</option>
-                <option value="Europe/Paris">巴黎/法蘭克福/米蘭 — Europe/Paris</option>
-                <option value="Europe/Zurich">蘇黎世 — Europe/Zurich</option>
-                <option value="Europe/Athens">雅典 — Europe/Athens</option>
-              </optgroup>
-              <optgroup label="美洲（自動處理夏令時間）">
-                <option value="America/New_York">紐約/美東 — America/New_York</option>
-                <option value="America/Chicago">芝加哥/美中 — America/Chicago</option>
-                <option value="America/Los_Angeles">洛杉磯/舊金山 — America/Los_Angeles</option>
-                <option value="America/Vancouver">溫哥華 — America/Vancouver</option>
-              </optgroup>
-            </select>
-          </div>
 
-          <!-- 即時換算結果預覽 -->
-          <div id="sniperCalcPreview" class="rounded-2xl bg-gradient-to-br from-amber-50/90 to-sky-50/70 border border-amber-200/80 p-4 space-y-2 text-xs">
-            <div class="font-bold text-slate-700">請選擇預計入住日以即時換算台灣開搶時間</div>
-          </div>
+            <div class="flex items-center justify-end gap-2.5 pt-1">
+              <button type="button" onclick="resetSniperForm()" class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold">重設</button>
+              <button type="submit" id="sfSubmitBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-sm font-bold shadow-sm transition disabled:opacity-50">
+                建立搶房提醒
+              </button>
+            </div>
+          </form>
+        </section>
 
-          <div class="flex items-center justify-end gap-2.5 pt-1">
-            <button type="button" onclick="resetSniperForm()" class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold">重設</button>
-            <button type="submit" id="sfSubmitBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-sm font-bold shadow-sm transition disabled:opacity-50">
-              建立搶房提醒
+        <!-- 待搶清單 -->
+        <section class="tech-card rounded-2xl overflow-hidden">
+          <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 bg-slate-50/50">
+            <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-amber-500"></span>
+              待搶目標倒數清單（同步自「IHG活動」日曆）
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">搶房成功後可直接點擊「轉正式訂房」，自動帶入資料並移除原提醒與推播</p>
+          </div>
+          <div id="sniperListContainer" class="p-4 space-y-3"></div>
+        </section>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- 子分頁 3：定向加倍活動管理（個人日曆「IHG活動」）                      -->
+      <!-- =================================================================== -->
+      <div id="panel-promo" class="hidden space-y-5">
+        <section class="tech-card rounded-2xl overflow-hidden">
+          <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-slate-50/60">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-teal-500"></span>
+              <h2 id="promoFormTitle" class="text-sm sm:text-base font-bold text-slate-800">新增定向加倍活動</h2>
+            </div>
+            <button id="cancelPromoEditBtn" onclick="resetPromoForm()" class="hidden px-2.5 py-1 rounded-lg bg-slate-200/80 text-slate-700 text-xs font-semibold">
+              取消編輯
             </button>
           </div>
-        </form>
-      </section>
 
-      <!-- 待搶清單 -->
-      <section class="tech-card rounded-2xl overflow-hidden">
-        <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 bg-slate-50/50">
-          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
-            <span class="w-1.5 h-4 rounded-full bg-amber-500"></span>
-            待搶目標倒數清單（同步自「IHG活動」日曆）
-          </h2>
-          <p class="text-xs text-slate-500 mt-0.5">搶房成功後可直接點擊「轉正式訂房」，自動帶入資料並移除原提醒與推播</p>
-        </div>
-        <div id="sniperListContainer" class="p-4 space-y-3"></div>
-      </section>
-    </div>
-
-    <!-- =================================================================== -->
-    <!-- 子分頁 3：定向加倍活動管理（個人日曆「IHG活動」）                      -->
-    <!-- =================================================================== -->
-    <div id="panel-promo" class="hidden space-y-5">
-      <section class="tech-card rounded-2xl overflow-hidden">
-        <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-slate-50/60">
-          <div class="flex items-center gap-2">
-            <span class="w-1.5 h-4 rounded-full bg-teal-500"></span>
-            <h2 id="promoFormTitle" class="text-sm sm:text-base font-bold text-slate-800">新增定向加倍活動</h2>
-          </div>
-          <button id="cancelPromoEditBtn" onclick="resetPromoForm()" class="hidden px-2.5 py-1 rounded-lg bg-slate-200/80 text-slate-700 text-xs font-semibold">
-            取消編輯
-          </button>
-        </div>
-
-        <form id="promoForm" onsubmit="submitPromoForm(event)" class="p-4 sm:p-5 space-y-4">
-          <input type="hidden" id="pfEventId" value="" />
-          <div>
-            <label for="pfName" class="block text-xs font-semibold text-slate-600 mb-1.5">活動名稱（系統會自動加上【IHG加倍】前綴）</label>
-            <input id="pfName" type="text" required placeholder="例如：Q1 雙倍房晚定向活動"
-              class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500/40" />
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <form id="promoForm" onsubmit="submitPromoForm(event)" class="p-4 sm:p-5 space-y-4">
+            <input type="hidden" id="pfEventId" value="" />
             <div>
-              <label for="pfStartDate" class="block text-xs font-semibold text-slate-600 mb-1.5">活動開始日</label>
-              <input id="pfStartDate" type="date" required class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none" />
+              <label for="pfName" class="block text-xs font-semibold text-slate-600 mb-1.5">活動名稱（系統會自動加上【IHG加倍】前綴）</label>
+              <input id="pfName" type="text" required placeholder="例如：Q1 雙倍房晚定向活動"
+                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500/40" />
             </div>
-            <div>
-              <label for="pfEndDate" class="block text-xs font-semibold text-slate-600 mb-1.5">活動結束日（含當日）</label>
-              <input id="pfEndDate" type="date" required class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none" />
-            </div>
-          </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
-            <div>
-              <label for="pfCap" class="block text-xs font-semibold text-slate-600 mb-1.5">活動贈送上限（晚數）</label>
-              <input id="pfCap" type="number" min="1" max="365" value="5" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none disabled:bg-slate-100 disabled:text-slate-400" />
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label for="pfStartDate" class="block text-xs font-semibold text-slate-600 mb-1.5">活動開始日</label>
+                <input id="pfStartDate" type="date" required class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none" />
+              </div>
+              <div>
+                <label for="pfEndDate" class="block text-xs font-semibold text-slate-600 mb-1.5">活動結束日（含當日）</label>
+                <input id="pfEndDate" type="date" required class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none" />
+              </div>
             </div>
-            <div class="flex flex-col gap-2 pb-1">
-              <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                <input type="checkbox" id="pfUnlimited" onchange="document.getElementById('pfCap').disabled = this.checked" class="w-4 h-4 rounded text-teal-600" />
-                贈送晚數無上限
-              </label>
-              <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                <input type="checkbox" id="pfStatusOnly" class="w-4 h-4 rounded text-teal-600" />
-                僅計入會籍定級（不計入 40 晚進階獎勵）
-              </label>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
+              <div>
+                <label for="pfCap" class="block text-xs font-semibold text-slate-600 mb-1.5">活動贈送上限（晚數）</label>
+                <input id="pfCap" type="number" min="1" max="365" value="5" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none disabled:bg-slate-100 disabled:text-slate-400" />
+              </div>
+              <div class="flex flex-col gap-2 pb-1">
+                <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input type="checkbox" id="pfUnlimited" onchange="document.getElementById('pfCap').disabled = this.checked" class="w-4 h-4 rounded text-teal-600" />
+                  贈送晚數無上限
+                </label>
+                <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input type="checkbox" id="pfStatusOnly" class="w-4 h-4 rounded text-teal-600" />
+                  僅計入會籍定級（不計入 40 晚進階獎勵）
+                </label>
+              </div>
             </div>
-          </div>
 
-          <div class="flex items-center justify-end gap-2.5 pt-1">
-            <button type="button" onclick="resetPromoForm()" class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold">重設</button>
-            <button type="submit" id="pfSubmitBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white text-sm font-bold shadow-sm transition">
-              寫入「IHG活動」日曆
-            </button>
-          </div>
-        </form>
-      </section>
+            <div class="flex items-center justify-end gap-2.5 pt-1">
+              <button type="button" onclick="resetPromoForm()" class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold">重設</button>
+              <button type="submit" id="pfSubmitBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white text-sm font-bold shadow-sm transition">
+                寫入「IHG活動」日曆
+              </button>
+            </div>
+          </form>
+        </section>
 
-      <section class="tech-card rounded-2xl overflow-hidden">
-        <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 bg-slate-50/50">
-          <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
-            <span class="w-1.5 h-4 rounded-full bg-teal-500"></span>
-            已建立的定向加倍活動
-          </h2>
-        </div>
-        <div id="managePromosList" class="p-4 space-y-3"></div>
-      </section>
+        <section class="tech-card rounded-2xl overflow-hidden">
+          <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 bg-slate-50/50">
+            <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+              <span class="w-1.5 h-4 rounded-full bg-teal-500"></span>
+              已建立的定向加倍活動
+            </h2>
+          </div>
+          <div id="managePromosList" class="p-4 space-y-3"></div>
+        </section>
+      </div>
+
     </div>
 
   </main>
@@ -501,6 +567,7 @@
     // =========================================================================
     // 狀態管理
     // =========================================================================
+    const SUBTAB_ORDER = ['booking', 'sniper', 'promo'];
     let appData = { selectedYear: new Date().getFullYear(), rawBookingEvents: [], promos: [], snipers: [] };
     let activeSubTab = 'booking';
     let bookingRooms = [];
@@ -756,24 +823,62 @@
     }
 
     // =========================================================================
-    // 子分頁切換
+    // 子分頁切換（不透明實底滑塊 ＋ 面板左右滑入動態）
     // =========================================================================
-    function switchSubTab(tab) {
+    function switchSubTab(tab, animate = true) {
+      const nextIdx = SUBTAB_ORDER.indexOf(tab);
+      if (nextIdx === -1) return;
+
+      const prevIdx = SUBTAB_ORDER.indexOf(activeSubTab);
+      const changed = tab !== activeSubTab;
       activeSubTab = tab;
-      ['booking', 'sniper', 'promo'].forEach(t => {
+
+      // 1. 滑動不透明實底滑塊
+      const pill = document.getElementById('subtabSliderPill');
+      if (pill) {
+        if (!animate) pill.classList.add('is-instant');
+        pill.style.transform = `translate3d(${nextIdx * 100}%, 0, 0)`;
+        if (!animate) {
+          void pill.offsetWidth;
+          pill.classList.remove('is-instant');
+        }
+      }
+
+      // 2. 更新按鈕文字、徽章與內容面板滑動進場
+      SUBTAB_ORDER.forEach(t => {
         const panel = document.getElementById('panel-' + t);
         const btn = document.getElementById('tabBtn-' + t);
-        const badge = btn.querySelector('span:last-child');
-        if (t === tab) {
-          panel.classList.remove('hidden');
-          btn.className = 'subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 bg-sky-600 text-white shadow-sm';
-          if (badge) badge.className = 'font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-white/20 text-white';
-        } else {
-          panel.classList.add('hidden');
-          btn.className = 'subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-100';
-          if (badge) badge.className = 'font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-600';
+        const badge = btn && btn.querySelector('span:last-child');
+        const isTarget = t === tab;
+
+        if (btn) {
+          btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+          btn.className = isTarget
+            ? 'subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-white select-none'
+            : 'subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 select-none';
+        }
+        if (badge) {
+          badge.className = isTarget
+            ? 'font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-white/25 text-white transition-colors duration-200'
+            : 'font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 transition-colors duration-200';
+        }
+
+        if (panel) {
+          panel.classList.remove('subtab-slide-from-right', 'subtab-slide-from-left');
+          if (isTarget) {
+            panel.classList.remove('hidden');
+            if (animate && changed) {
+              const animCls = nextIdx > prevIdx ? 'subtab-slide-from-right' : 'subtab-slide-from-left';
+              void panel.offsetWidth;
+              panel.classList.add(animCls);
+              panel.addEventListener('animationend', () => panel.classList.remove(animCls), { once: true });
+            }
+          } else {
+            panel.classList.add('hidden');
+          }
         }
       });
+
       try { window.history.replaceState(null, '', `#${tab}`); } catch (_) {}
     }
 
@@ -1178,14 +1283,12 @@
 
       if (selected.length < 2) return;
 
-      // 規則 1：同飯店
       const hotelName = selected[0].hotelName;
       if (selected.some(ev => ev.hotelName !== hotelName)) {
         showToast('無法合併：所選行程必須為完全相同的飯店名稱', 'error');
         return;
       }
 
-      // 規則 2：日期首尾相連不中斷、不重疊
       for (let i = 1; i < selected.length; i++) {
         if (selected[i].checkIn !== selected[i - 1].checkOut) {
           showToast(`無法合併：日期必須連續（${selected[i - 1].checkOut} 與 ${selected[i].checkIn} 未相連）`, 'error');
@@ -1193,7 +1296,6 @@
         }
       }
 
-      // 規則 3 & 4：房數、每房方案＋扣抵年份、計價幣別一致
       const roomCount = selected[0].rooms.length;
       for (let i = 1; i < selected.length; i++) {
         if (selected[i].rooms.length !== roomCount) {
@@ -1407,10 +1509,11 @@
       const box = document.getElementById('sniperCalcPreview');
 
       document.querySelectorAll('.tz-pill').forEach(btn => {
-        const match = btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${tz}'`);
+        const group = (btn.getAttribute('data-tz-group') || '').split(',');
+        const match = group.includes(tz);
         btn.className = match
-          ? 'tz-pill px-2.5 py-1 rounded-lg text-xs font-bold border border-sky-400 bg-sky-50 text-sky-700'
-          : 'tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700';
+          ? 'tz-pill px-2.5 py-1 rounded-lg text-xs font-bold border border-sky-400 bg-sky-50 text-sky-700 transition'
+          : 'tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700 transition';
       });
 
       if (!checkIn) {
@@ -1765,8 +1868,10 @@
       initOneSignalClient();
 
       const hash = (window.location.hash || '').replace('#', '');
-      if (['booking', 'sniper', 'promo'].includes(hash)) {
-        switchSubTab(hash);
+      if (SUBTAB_ORDER.includes(hash)) {
+        switchSubTab(hash, false);
+      } else {
+        switchSubTab('booking', false);
       }
     });
   </script>
