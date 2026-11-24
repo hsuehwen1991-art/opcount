@@ -1,6 +1,7 @@
 // =========================================================================
-// IHG Duo - 共用核心模組 (shared.js v3)
-// 支援：最多 4 間房(8行)、雙軌會籍/獎勵計算、搶房提醒、雙向寫入 API、手機底部導覽列
+// IHG Duo - 共用核心模組 (shared.js v3.1 Liquid Glass Edition)
+// 支援：最多 4 間房(8行)、雙軌會籍/獎勵計算、搶房提醒、雙向寫入 API、
+//       雙端 iOS Liquid Glass 導覽列、液態滑塊與跨頁滑動轉場 (View Transitions)
 // =========================================================================
 (function (global) {
   'use strict';
@@ -16,7 +17,8 @@
     SELECTED_YEAR: 'ihg_selected_year_v3',
     RATES: 'ihg_exchange_rates_v3',
     DATA_PREFIX: 'ihg_calendar_cache_v3_',
-    ADMIN_PIN: 'ihg_duo_admin_pin_v1'
+    ADMIN_PIN: 'ihg_duo_admin_pin_v1',
+    NAV_TRANSITION: 'ihg_duo_nav_transition_v1'
   };
 
   const NAV_ITEMS = [
@@ -142,7 +144,10 @@
     rollovers: [],
     snipers: [],
     membership: null,
-    latestRequestId: 0
+    latestRequestId: 0,
+    chromeRendered: false,
+    nativeVTActive: false,
+    isNavigating: false
   };
 
   // =========================================================================
@@ -153,6 +158,9 @@
   }
   function safeSessionSet(key, val) {
     try { global.sessionStorage.setItem(key, val); } catch (_) {}
+  }
+  function safeSessionRemove(key) {
+    try { global.sessionStorage.removeItem(key); } catch (_) {}
   }
   function safeLocalGet(key) {
     try { return global.localStorage.getItem(key); } catch (_) { return null; }
@@ -182,6 +190,66 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function getNavIndexById(id) {
+    const idx = NAV_ITEMS.findIndex(item => item.id === id);
+    return idx >= 0 ? idx : 0;
+  }
+
+  function getNavIndexByUrl(urlStr) {
+    if (!urlStr) return -1;
+    try {
+      const u = new URL(urlStr, global.location.href);
+      const path = (u.pathname || '').toLowerCase();
+      for (let i = 0; i < NAV_ITEMS.length; i++) {
+        if (path.endsWith('/' + NAV_ITEMS[i].href.toLowerCase()) || path === NAV_ITEMS[i].href.toLowerCase()) {
+          return i;
+        }
+      }
+      if (path === '/' || path.endsWith('/')) return 0;
+    } catch (_) {}
+    return -1;
+  }
+
+  function readPendingTransition() {
+    const raw = safeSessionGet(STORAGE_KEYS.NAV_TRANSITION);
+    if (!raw) return null;
+    try {
+      const data = JSON.parse(raw);
+      if (data && typeof data.ts === 'number' && (Date.now() - data.ts) < 3500) {
+        return data;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function savePendingTransition(fromIdx, toIdx, dir) {
+    safeSessionSet(STORAGE_KEYS.NAV_TRANSITION, JSON.stringify({
+      fromIdx,
+      toIdx,
+      dir,
+      ts: Date.now()
+    }));
+  }
+
+  function supportsCrossDocVT() {
+    try {
+      return ('onpagereveal' in global) &&
+        typeof global.CSS !== 'undefined' &&
+        typeof global.CSS.supports === 'function' &&
+        global.CSS.supports('view-transition-name', 'ihg-page-content');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function prefersReducedMotion() {
+    try {
+      return global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (_) {
+      return false;
+    }
   }
 
   function getPlanStyle(basePlan) {
@@ -299,74 +367,552 @@
   }
 
   // =========================================================================
-  // 共用導覽列（電腦頂部 ＋ 手機底部固定 5 格分頁列）與控制列
+  // iOS Liquid Glass 樣式與跨頁滑動轉場（立即注入以確保 View Transition 生效）
   // =========================================================================
-  function injectResponsiveStyles() {
+  function injectLiquidGlassStyles() {
     if (document.getElementById('ihg-shared-styles')) return;
     const style = document.createElement('style');
     style.id = 'ihg-shared-styles';
     style.textContent = `
+      @view-transition {
+        navigation: auto;
+      }
+
+      :root {
+        --ihg-slide-dist: 16%;
+        --ihg-spring: cubic-bezier(0.28, 1.24, 0.36, 1);
+        --ihg-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      html {
+        overflow-x: clip;
+      }
+
       .safe-top-header {
         padding-top: env(safe-area-inset-top, 0px);
       }
-      .safe-bottom-nav {
-        padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+
+      .safe-bottom-dock {
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
       }
+
       @media (max-width: 767px) {
+        :root {
+          --ihg-slide-dist: 36%;
+        }
         body {
-          padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+          padding-bottom: calc(6.2rem + env(safe-area-inset-bottom, 0px));
+        }
+      }
+
+      /* 頂部頁首：Liquid Glass 透明層 */
+      .lg-header {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(244, 250, 255, 0.54) 100%);
+        backdrop-filter: blur(26px) saturate(190%) brightness(1.03);
+        -webkit-backdrop-filter: blur(26px) saturate(190%) brightness(1.03);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.78);
+        box-shadow:
+          0 8px 28px -12px rgba(15, 23, 42, 0.10),
+          inset 0 -1px 0 rgba(14, 165, 233, 0.10);
+        view-transition-name: ihg-header;
+      }
+
+      /* 通用 Liquid Glass 懸浮膠囊容器（電腦頂部選單 & 手機底部功能列） */
+      .lg-glass-capsule {
+        position: relative;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.56) 0%,
+          rgba(242, 248, 255, 0.34) 52%,
+          rgba(255, 255, 255, 0.48) 100%
+        );
+        backdrop-filter: blur(28px) saturate(200%) brightness(1.05);
+        -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.05);
+        border: 1px solid rgba(255, 255, 255, 0.78);
+        box-shadow:
+          0 14px 36px -10px rgba(15, 23, 42, 0.16),
+          0 4px 14px -4px rgba(14, 165, 233, 0.14),
+          inset 0 1.5px 1.5px rgba(255, 255, 255, 0.96),
+          inset 0 -1px 1.5px rgba(148, 163, 184, 0.22),
+          inset 1px 0 1px rgba(255, 255, 255, 0.55),
+          inset -1px 0 1px rgba(255, 255, 255, 0.55);
+      }
+
+      .lg-glass-capsule::before {
+        content: '';
+        position: absolute;
+        inset: 1px 1px auto 1px;
+        height: 46%;
+        border-radius: inherit;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0) 100%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .lg-desktop-nav {
+        box-shadow:
+          0 8px 22px -10px rgba(15, 23, 42, 0.14),
+          0 2px 8px -3px rgba(14, 165, 233, 0.12),
+          inset 0 1.5px 1px rgba(255, 255, 255, 0.96),
+          inset 0 -1px 1px rgba(148, 163, 184, 0.18);
+      }
+
+      #mobileBottomNav {
+        view-transition-name: ihg-bottom-nav;
+      }
+
+      /* 液態玻璃滑塊（Active Sliding Pill） */
+      .lg-pill-track {
+        position: absolute;
+        inset: 6px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .lg-pill {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        border-radius: 9999px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.72) 0%,
+          rgba(224, 242, 254, 0.38) 54%,
+          rgba(186, 230, 253, 0.46) 100%
+        );
+        border: 1px solid rgba(255, 255, 255, 0.94);
+        box-shadow:
+          0 6px 16px -4px rgba(14, 165, 233, 0.28),
+          0 2px 6px -2px rgba(15, 23, 42, 0.08),
+          inset 0 1.5px 1.5px rgba(255, 255, 255, 1),
+          inset 0 -1.5px 3px rgba(14, 165, 233, 0.20);
+        pointer-events: none;
+        will-change: transform, left, width;
+      }
+
+      .lg-pill-mobile {
+        border-radius: 22px;
+        view-transition-name: ihg-mobile-pill;
+        transition: transform 0.4s var(--ihg-spring), box-shadow 0.25s ease;
+      }
+
+      .lg-pill-desktop {
+        top: 5px;
+        bottom: 5px;
+        view-transition-name: ihg-desktop-pill;
+        transition: left 0.4s var(--ihg-spring), width 0.4s var(--ihg-spring), box-shadow 0.25s ease;
+      }
+
+      .lg-pill.is-no-transition {
+        transition: none !important;
+      }
+
+      .lg-pill.is-gliding {
+        box-shadow:
+          0 10px 24px -5px rgba(14, 165, 233, 0.36),
+          inset 0 2px 2px rgba(255, 255, 255, 1),
+          inset 0 -2px 4px rgba(56, 189, 248, 0.26);
+      }
+
+      .lg-pill.is-bouncing {
+        animation: ihg-liquid-bounce 380ms var(--ihg-spring);
+      }
+
+      .lg-nav-link {
+        position: relative;
+        z-index: 1;
+        transition: color 0.22s ease, transform 0.22s var(--ihg-spring), background-color 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .lg-nav-link:active {
+        transform: scale(0.93);
+      }
+
+      .lg-nav-link.is-tapped {
+        transform: scale(0.94);
+      }
+
+      /* 全站卡片微調：融入淺色 Liquid Glass 視覺 */
+      .tech-card {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(248, 252, 255, 0.68) 100%) !important;
+        backdrop-filter: blur(20px) saturate(175%) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(175%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.84) !important;
+        box-shadow:
+          0 8px 28px -10px rgba(15, 23, 42, 0.08),
+          0 2px 8px -2px rgba(14, 165, 233, 0.06),
+          inset 0 1px 1px rgba(255, 255, 255, 0.96) !important;
+      }
+
+      .tech-card.tech-card-hover:hover {
+        border-color: rgba(56, 189, 248, 0.55) !important;
+        box-shadow:
+          0 12px 32px -8px rgba(14, 165, 233, 0.16),
+          inset 0 1px 1px rgba(255, 255, 255, 1) !important;
+      }
+
+      /* 頁面主內容區：參與跨頁滑動轉場 */
+      main {
+        view-transition-name: ihg-page-content;
+      }
+
+      /* =====================================================================
+         原生 Cross-Document View Transitions（iOS Safari / Chrome / Edge）
+         ===================================================================== */
+      ::view-transition-group(ihg-header) {
+        z-index: 30;
+        animation-duration: 0ms;
+      }
+      ::view-transition-old(ihg-header) { display: none; }
+      ::view-transition-new(ihg-header) { animation: none; }
+
+      ::view-transition-group(ihg-bottom-nav) {
+        z-index: 40;
+        animation-duration: 0ms;
+      }
+      ::view-transition-old(ihg-bottom-nav) { display: none; }
+      ::view-transition-new(ihg-bottom-nav) { animation: none; }
+
+      ::view-transition-group(ihg-desktop-pill),
+      ::view-transition-group(ihg-mobile-pill) {
+        z-index: 45;
+        animation-duration: 380ms;
+        animation-timing-function: cubic-bezier(0.28, 1.24, 0.36, 1);
+      }
+      ::view-transition-old(ihg-desktop-pill),
+      ::view-transition-old(ihg-mobile-pill) {
+        display: none;
+      }
+      ::view-transition-new(ihg-desktop-pill),
+      ::view-transition-new(ihg-mobile-pill) {
+        height: 100%;
+        animation: ihg-liquid-stretch 380ms cubic-bezier(0.28, 1.24, 0.36, 1);
+      }
+
+      ::view-transition-group(ihg-page-content) {
+        z-index: 1;
+        overflow: clip;
+      }
+
+      html[data-nav-dir="forward"]::view-transition-old(ihg-page-content) {
+        animation: ihg-slide-out-left 320ms var(--ihg-ease-out) both;
+      }
+      html[data-nav-dir="forward"]::view-transition-new(ihg-page-content) {
+        animation: ihg-slide-in-right 340ms var(--ihg-ease-out) both;
+      }
+
+      html[data-nav-dir="backward"]::view-transition-old(ihg-page-content) {
+        animation: ihg-slide-out-right 320ms var(--ihg-ease-out) both;
+      }
+      html[data-nav-dir="backward"]::view-transition-new(ihg-page-content) {
+        animation: ihg-slide-in-left 340ms var(--ihg-ease-out) both;
+      }
+
+      /* JS 降級滑動動畫（不支援原生跨頁 View Transitions 的舊瀏覽器自動啟用） */
+      main.ihg-js-out-forward {
+        animation: ihg-slide-out-left 190ms var(--ihg-ease-out) forwards;
+      }
+      main.ihg-js-out-backward {
+        animation: ihg-slide-out-right 190ms var(--ihg-ease-out) forwards;
+      }
+      main.ihg-js-in-forward {
+        animation: ihg-slide-in-right 320ms var(--ihg-ease-out) both;
+      }
+      main.ihg-js-in-backward {
+        animation: ihg-slide-in-left 320ms var(--ihg-ease-out) both;
+      }
+
+      @keyframes ihg-slide-out-left {
+        from { opacity: 1; transform: translate3d(0, 0, 0); }
+        to   { opacity: 0; transform: translate3d(calc(var(--ihg-slide-dist) * -1), 0, 0); }
+      }
+      @keyframes ihg-slide-in-right {
+        from { opacity: 0; transform: translate3d(var(--ihg-slide-dist), 0, 0); }
+        to   { opacity: 1; transform: translate3d(0, 0, 0); }
+      }
+      @keyframes ihg-slide-out-right {
+        from { opacity: 1; transform: translate3d(0, 0, 0); }
+        to   { opacity: 0; transform: translate3d(var(--ihg-slide-dist), 0, 0); }
+      }
+      @keyframes ihg-slide-in-left {
+        from { opacity: 0; transform: translate3d(calc(var(--ihg-slide-dist) * -1), 0, 0); }
+        to   { opacity: 1; transform: translate3d(0, 0, 0); }
+      }
+      @keyframes ihg-liquid-stretch {
+        0%   { transform: scale(1, 1); }
+        35%  { transform: scale(1.10, 0.92); }
+        75%  { transform: scale(0.97, 1.03); }
+        100% { transform: scale(1, 1); }
+      }
+      @keyframes ihg-liquid-bounce {
+        0%   { filter: brightness(1); transform: scale(1); }
+        40%  { filter: brightness(1.08); transform: scale(1.06, 0.94); }
+        100% { filter: brightness(1); transform: scale(1); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        ::view-transition-group(*),
+        ::view-transition-old(*),
+        ::view-transition-new(*) {
+          animation-duration: 0.01ms !important;
+        }
+        .lg-pill, main {
+          transition: none !important;
+          animation: none !important;
         }
       }
     `;
     document.head.appendChild(style);
   }
 
-  function renderSharedChrome() {
-    injectResponsiveStyles();
+  // 立即注入樣式並預判轉場方向，確保 pagereveal 前規則已就位
+  injectLiquidGlassStyles();
+  (function primeInitialDirection() {
+    const pending = readPendingTransition();
+    if (pending && (pending.dir === 'forward' || pending.dir === 'backward')) {
+      document.documentElement.dataset.navDir = pending.dir;
+    }
+  })();
 
+  function resolveDirFromActivation(activation) {
+    if (activation && activation.from && activation.entry) {
+      const fromIdx = getNavIndexByUrl(activation.from.url);
+      const toIdx = getNavIndexByUrl(activation.entry.url);
+      if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+        return toIdx > fromIdx ? 'forward' : 'backward';
+      }
+    }
+    const pending = readPendingTransition();
+    return pending ? pending.dir : null;
+  }
+
+  // 監聽原生跨頁 View Transitions 事件
+  global.addEventListener('pageswap', (e) => {
+    if (!e || !e.viewTransition) return;
+    const dir = resolveDirFromActivation(e.activation);
+    if (dir) {
+      document.documentElement.dataset.navDir = dir;
+    }
+  });
+
+  global.addEventListener('pagereveal', (e) => {
+    const pending = readPendingTransition();
+    if (e && e.viewTransition) {
+      state.nativeVTActive = true;
+      const dir = resolveDirFromActivation(e.activation);
+      if (dir) {
+        document.documentElement.dataset.navDir = dir;
+      }
+      e.viewTransition.finished.finally(() => {
+        delete document.documentElement.dataset.navDir;
+        safeSessionRemove(STORAGE_KEYS.NAV_TRANSITION);
+      });
+    } else if (pending && !prefersReducedMotion()) {
+      // 瀏覽器未觸發原生轉場時，自動補播 JS 滑入與滑塊跟隨
+      runFallbackEnterAnimation(pending);
+      safeSessionRemove(STORAGE_KEYS.NAV_TRANSITION);
+    } else {
+      delete document.documentElement.dataset.navDir;
+      safeSessionRemove(STORAGE_KEYS.NAV_TRANSITION);
+    }
+  });
+
+  function runFallbackEnterAnimation(pending) {
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      const cls = pending.dir === 'backward' ? 'ihg-js-in-backward' : 'ihg-js-in-forward';
+      mainEl.classList.remove('ihg-js-in-forward', 'ihg-js-in-backward');
+      void mainEl.offsetWidth;
+      mainEl.classList.add(cls);
+      mainEl.addEventListener('animationend', () => mainEl.classList.remove(cls), { once: true });
+    }
+    // 讓滑塊從來源分頁滑向當前分頁
+    const targetIdx = getNavIndexById(state.activePage);
+    if (typeof pending.fromIdx === 'number' && pending.fromIdx !== targetIdx) {
+      positionMobilePill(pending.fromIdx, false);
+      positionDesktopPill(pending.fromIdx, false);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          positionMobilePill(targetIdx, true);
+          positionDesktopPill(targetIdx, true);
+        });
+      });
+    }
+    delete document.documentElement.dataset.navDir;
+  }
+
+  // =========================================================================
+  // 液態滑塊定位與互動控制
+  // =========================================================================
+  function positionMobilePill(index, animate = false) {
+    const pill = document.getElementById('mobileLiquidPill');
+    if (!pill) return;
+    if (!animate) pill.classList.add('is-no-transition');
+    else pill.classList.add('is-gliding');
+
+    pill.style.width = `${100 / NAV_ITEMS.length}%`;
+    pill.style.transform = `translate3d(${index * 100}%, 0, 0)`;
+
+    if (!animate) {
+      void pill.offsetWidth;
+      pill.classList.remove('is-no-transition');
+    } else {
+      setTimeout(() => pill.classList.remove('is-gliding'), 420);
+    }
+  }
+
+  function positionDesktopPill(index, animate = false) {
+    const nav = document.getElementById('desktopLiquidNav');
+    const pill = document.getElementById('desktopLiquidPill');
+    if (!nav || !pill || nav.offsetWidth === 0) return;
+
+    const targetLink = nav.querySelector(`.lg-desktop-link[data-nav-index="${index}"]`);
+    if (!targetLink) return;
+
+    const navRect = nav.getBoundingClientRect();
+    const linkRect = targetLink.getBoundingClientRect();
+    if (linkRect.width <= 0) return;
+
+    if (!animate) pill.classList.add('is-no-transition');
+    else pill.classList.add('is-gliding');
+
+    pill.style.left = `${linkRect.left - navRect.left}px`;
+    pill.style.width = `${linkRect.width}px`;
+    pill.style.opacity = '1';
+
+    if (!animate) {
+      void pill.offsetWidth;
+      pill.classList.remove('is-no-transition');
+    } else {
+      setTimeout(() => pill.classList.remove('is-gliding'), 420);
+    }
+  }
+
+  function triggerActiveBounce() {
+    ['mobileLiquidPill', 'desktopLiquidPill'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('is-bouncing');
+      void el.offsetWidth;
+      el.classList.add('is-bouncing');
+      el.addEventListener('animationend', () => el.classList.remove('is-bouncing'), { once: true });
+    });
+  }
+
+  function bindLiquidNavInteractions() {
+    const links = document.querySelectorAll('.nav-link-item[data-nav-id]');
+    links.forEach(link => {
+      if (link.dataset.lgBound === '1') return;
+      link.dataset.lgBound = '1';
+
+      link.addEventListener('click', (e) => {
+        // 保留 Ctrl/Cmd/中鍵 開新分頁等原生行為
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+
+        const targetId = link.getAttribute('data-nav-id');
+        const targetHref = link.getAttribute('href');
+        if (!targetId || !targetHref) return;
+
+        const fromIdx = getNavIndexById(state.activePage);
+        const toIdx = getNavIndexById(targetId);
+
+        // 點擊目前所在分頁：平滑回頂部＋玻璃微彈（仿原生 iOS Tab Bar）
+        if (targetId === state.activePage) {
+          e.preventDefault();
+          triggerActiveBounce();
+          global.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+
+        if (state.isNavigating) {
+          e.preventDefault();
+          return;
+        }
+
+        const dir = toIdx > fromIdx ? 'forward' : 'backward';
+        savePendingTransition(fromIdx, toIdx, dir);
+        document.documentElement.dataset.navDir = dir;
+        link.classList.add('is-tapped');
+
+        // 若支援原生跨頁 View Transitions，放行交由瀏覽器 120fps 同步滑移滑塊與頁面
+        if (supportsCrossDocVT() && !prefersReducedMotion()) {
+          return;
+        }
+
+        // 舊版瀏覽器降級：先滑動液態滑塊與舊頁，再跳轉
+        e.preventDefault();
+        state.isNavigating = true;
+
+        positionMobilePill(toIdx, true);
+        positionDesktopPill(toIdx, true);
+
+        const mainEl = document.querySelector('main');
+        if (mainEl && !prefersReducedMotion()) {
+          mainEl.classList.add(dir === 'forward' ? 'ihg-js-out-forward' : 'ihg-js-out-backward');
+          setTimeout(() => {
+            global.location.href = targetHref;
+          }, 185);
+        } else {
+          global.location.href = targetHref;
+        }
+      });
+    });
+  }
+
+  // =========================================================================
+  // 共用導覽列（電腦頂部 Liquid Glass ＋ 手機底部懸浮 Liquid Glass）與控制列
+  // =========================================================================
+  function renderSharedChrome() {
+    if (state.chromeRendered) return;
+    injectLiquidGlassStyles();
+
+    const activeIdx = getNavIndexById(state.activePage);
     const headerEl = document.getElementById('appHeader');
     if (headerEl) {
-      const desktopNavHtml = NAV_ITEMS.map(item => {
+      const desktopNavHtml = NAV_ITEMS.map((item, idx) => {
         const isActive = item.id === state.activePage;
         const cls = isActive
-          ? 'bg-white text-sky-700 shadow-sm ring-1 ring-sky-200/80 font-semibold'
-          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium';
+          ? 'text-sky-700 font-semibold'
+          : 'text-slate-600 hover:text-slate-900 font-medium';
         return `
-          <a data-nav-href="${item.href}" href="${item.href}?year=${state.selectedYear}"
-             class="nav-link-item px-3.5 py-1.5 rounded-lg text-sm transition whitespace-nowrap ${cls}">
+          <a data-nav-href="${item.href}" data-nav-id="${item.id}" data-nav-index="${idx}" href="${item.href}?year=${state.selectedYear}"
+             class="nav-link-item lg-nav-link lg-desktop-link px-3.5 py-1.5 rounded-full text-sm whitespace-nowrap ${cls}">
             ${item.label}
           </a>
         `;
       }).join('');
 
       headerEl.innerHTML = `
-        <header class="safe-top-header sticky top-0 z-30 bg-white/85 backdrop-blur-lg border-b border-sky-100/90 shadow-[0_2px_16px_-4px_rgba(14,165,233,0.10)]">
+        <header class="safe-top-header lg-header sticky top-0 z-30">
           <div class="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2">
-            <a data-nav-href="index.html" href="index.html?year=${state.selectedYear}" class="nav-link-item flex items-center gap-2.5 group min-w-0">
-              <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-sky-500 to-indigo-600 text-white flex flex-col items-center justify-center font-bold leading-none shadow-md shadow-sky-500/25 ring-1 ring-white/50 shrink-0">
+            <a data-nav-href="index.html" data-nav-id="index" href="index.html?year=${state.selectedYear}" class="nav-link-item flex items-center gap-2.5 group min-w-0">
+              <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-sky-500 to-indigo-600 text-white flex flex-col items-center justify-center font-bold leading-none shadow-md shadow-sky-500/25 ring-1 ring-white/60 shrink-0">
                 <span class="text-[11px] sm:text-xs tracking-wider">IHG</span>
                 <span class="text-[8px] sm:text-[9px] tracking-widest opacity-90 mt-0.5">DUO</span>
               </div>
               <div class="flex items-center gap-2 min-w-0">
                 <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 group-hover:text-sky-700 transition truncate">IHG Duo</h1>
-                <span class="hidden xl:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wider bg-sky-50 text-sky-600 border border-sky-200/80">
+                <span class="hidden xl:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider bg-white/70 text-sky-600 border border-sky-200/80 shadow-2xs">
                   員工價住宿統計
                 </span>
               </div>
             </a>
 
-            <nav aria-label="主導覽列" class="hidden md:flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
-              <div class="flex items-center gap-1">
+            <nav id="desktopLiquidNav" aria-label="主導覽列" class="hidden md:flex items-center lg-glass-capsule lg-desktop-nav rounded-full p-1.5">
+              <div id="desktopLiquidPill" class="lg-pill lg-pill-desktop" style="opacity: 0;" aria-hidden="true"></div>
+              <div class="relative z-10 flex items-center gap-0.5">
                 ${desktopNavHtml}
               </div>
             </nav>
 
             <div class="flex items-center gap-2 shrink-0">
-              <div id="statusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-sky-50 text-sky-700 text-[11px] sm:text-xs font-medium font-mono-num border border-sky-200/80">
+              <div id="statusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/70 backdrop-blur-md text-sky-700 text-[11px] sm:text-xs font-medium font-mono-num border border-sky-200/80 shadow-2xs">
                 <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
                 <span>同步中...</span>
               </div>
-              <button id="refreshBtn" onclick="IHGApp.refresh()" class="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-500 hover:to-cyan-500 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-sky-500/25 transition flex items-center gap-1.5 active:scale-[0.98]" title="重新同步日曆">
+              <button id="refreshBtn" onclick="IHGApp.refresh()" class="px-2.5 sm:px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-600 to-cyan-500 hover:from-sky-500 hover:to-cyan-400 text-white text-xs sm:text-sm font-semibold shadow-md shadow-sky-500/25 ring-1 ring-white/40 transition flex items-center gap-1.5 active:scale-[0.96]" title="重新同步日曆">
                 <svg id="refreshIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
@@ -378,7 +924,7 @@
       `;
     }
 
-    // 手機版底部固定 5 格分頁列 (Bottom Tab Bar)
+    // 手機版懸浮 Liquid Glass 5 格底部功能列
     let bottomNav = document.getElementById('mobileBottomNav');
     if (!bottomNav) {
       bottomNav = document.createElement('nav');
@@ -386,25 +932,27 @@
       bottomNav.setAttribute('aria-label', '手機版底部導覽列');
       document.body.appendChild(bottomNav);
     }
-    bottomNav.className = 'md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/92 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-4px_20px_-6px_rgba(15,23,42,0.10)] safe-bottom-nav';
+    bottomNav.className = 'md:hidden fixed bottom-0 inset-x-0 z-40 pointer-events-none px-3.5 safe-bottom-dock';
     bottomNav.innerHTML = `
-      <div class="grid grid-cols-5 max-w-lg mx-auto px-1 pt-1.5">
-        ${NAV_ITEMS.map(item => {
-          const isActive = item.id === state.activePage;
-          const colorCls = isActive ? 'text-sky-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium';
-          const pillCls = isActive ? 'bg-sky-50 text-sky-600' : '';
-          return `
-            <a data-nav-href="${item.href}" href="${item.href}?year=${state.selectedYear}"
-               class="nav-link-item flex flex-col items-center justify-center gap-0.5 py-1 rounded-xl transition active:scale-95 ${colorCls}">
-              <span class="w-10 h-6 rounded-full flex items-center justify-center transition ${pillCls}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="${isActive ? '2.2' : '1.8'}" viewBox="0 0 24 24">
+      <div id="mobileLiquidDock" class="pointer-events-auto lg-glass-capsule relative mx-auto max-w-md rounded-[28px] p-1.5">
+        <div class="lg-pill-track" aria-hidden="true">
+          <div id="mobileLiquidPill" class="lg-pill lg-pill-mobile" style="width: ${100 / NAV_ITEMS.length}%; transform: translate3d(${activeIdx * 100}%, 0, 0);"></div>
+        </div>
+        <div class="relative z-10 grid grid-cols-5">
+          ${NAV_ITEMS.map((item, idx) => {
+            const isActive = item.id === state.activePage;
+            const colorCls = isActive ? 'text-sky-700 font-bold' : 'text-slate-600/85 hover:text-slate-900 font-medium';
+            return `
+              <a data-nav-href="${item.href}" data-nav-id="${item.id}" data-nav-index="${idx}" href="${item.href}?year=${state.selectedYear}"
+                 class="nav-link-item lg-nav-link flex flex-col items-center justify-center gap-0.5 py-2 rounded-[22px] ${colorCls}">
+                <svg class="w-[21px] h-[21px]" fill="none" stroke="currentColor" stroke-width="${isActive ? '2.25' : '1.85'}" viewBox="0 0 24 24">
                   ${item.icon}
                 </svg>
-              </span>
-              <span class="text-[11px] leading-tight tracking-tight">${item.shortLabel}</span>
-            </a>
-          `;
-        }).join('')}
+                <span class="text-[10.5px] leading-tight tracking-tight">${item.shortLabel}</span>
+              </a>
+            `;
+          }).join('')}
+        </div>
       </div>
     `;
 
@@ -415,10 +963,10 @@
           <div class="flex flex-wrap items-center gap-3 sm:gap-4">
             <div>
               <label for="yearSelect" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">檢視年份</label>
-              <select id="yearSelect" onchange="IHGApp.onYearChange()" class="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none transition">
+              <select id="yearSelect" onchange="IHGApp.onYearChange()" class="rounded-xl border border-slate-200/90 bg-white/75 px-3 py-1.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none transition">
               </select>
             </div>
-            <div class="h-8 w-px bg-slate-200 hidden sm:block"></div>
+            <div class="h-8 w-px bg-slate-200/80 hidden sm:block"></div>
             <div>
               <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">同步資料範圍</span>
               <span id="syncRangeDisplay" class="font-mono-num inline-flex items-center px-3 py-1 rounded-xl bg-sky-50/80 text-sky-700 border border-sky-200/70 text-xs font-semibold">
@@ -427,7 +975,7 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/80 max-w-full overflow-x-auto">
+          <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/65 border border-slate-200/80 max-w-full overflow-x-auto">
             <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0"></span>
             <div id="rateInfo" class="font-mono-num text-[11px] text-slate-500 whitespace-nowrap">
               即時匯率載入中...（1 積分 = 0.16 TWD）
@@ -435,6 +983,23 @@
           </div>
         </section>
       `;
+    }
+
+    state.chromeRendered = true;
+
+    // 同步定位液態滑塊並綁定互動
+    positionMobilePill(activeIdx, false);
+    positionDesktopPill(activeIdx, false);
+    bindLiquidNavInteractions();
+
+    // 視窗縮放或字型載入完成時自動校準電腦版滑塊寬度
+    global.addEventListener('resize', () => {
+      positionDesktopPill(getNavIndexById(state.activePage), false);
+    });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        positionDesktopPill(getNavIndexById(state.activePage), false);
+      });
     }
   }
 
@@ -490,12 +1055,12 @@
     const badge = document.getElementById('statusBadge');
     if (!badge) return;
     const styles = {
-      loading: ['bg-sky-50 text-sky-700 border-sky-200/80', 'bg-sky-500 animate-pulse'],
-      success: ['bg-emerald-50 text-emerald-700 border-emerald-200/80', 'bg-emerald-500'],
-      error: ['bg-amber-50 text-amber-800 border-amber-200/90', 'bg-amber-500']
+      loading: ['bg-white/70 text-sky-700 border-sky-200/80', 'bg-sky-500 animate-pulse'],
+      success: ['bg-emerald-50/80 text-emerald-700 border-emerald-200/80', 'bg-emerald-500'],
+      error: ['bg-amber-50/85 text-amber-800 border-amber-200/90', 'bg-amber-500']
     };
     const [boxCls, dotCls] = styles[type] || styles.loading;
-    badge.className = `inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] sm:text-xs font-medium font-mono-num border ${boxCls}`;
+    badge.className = `inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] sm:text-xs font-medium font-mono-num backdrop-blur-md border shadow-2xs ${boxCls}`;
     badge.innerHTML = `<span class="w-2 h-2 rounded-full ${dotCls}"></span><span>${escapeHtml(text)}</span>`;
   }
 
@@ -527,20 +1092,24 @@
     rateInfoEl.textContent = prefix + parts.join(' ｜ ');
   }
 
-  async function loadExchangeRates(forceRefresh = false, timeoutMs = 3500) {
-    if (!forceRefresh) {
-      const cachedRaw = safeSessionGet(STORAGE_KEYS.RATES);
-      if (cachedRaw) {
-        try {
-          const cached = JSON.parse(cachedRaw);
-          if (cached && cached.rates) {
-            state.exchangeRates = { ...DEFAULT_RATES, ...cached.rates };
-            state.ratesLoadedFromLive = Boolean(cached.live);
-            updateDynamicRateDisplay();
-            return;
-          }
-        } catch (_) {}
+  function hydrateRatesFromCacheSync() {
+    const cachedRaw = safeSessionGet(STORAGE_KEYS.RATES);
+    if (!cachedRaw) return false;
+    try {
+      const cached = JSON.parse(cachedRaw);
+      if (cached && cached.rates) {
+        state.exchangeRates = { ...DEFAULT_RATES, ...cached.rates };
+        state.ratesLoadedFromLive = Boolean(cached.live);
+        updateDynamicRateDisplay();
+        return true;
       }
+    } catch (_) {}
+    return false;
+  }
+
+  async function loadExchangeRates(forceRefresh = false, timeoutMs = 3500) {
+    if (!forceRefresh && hydrateRatesFromCacheSync()) {
+      return;
     }
 
     let timerId = null;
@@ -636,6 +1205,23 @@
     return json;
   }
 
+  function hydrateCalendarFromCacheSync() {
+    const selectedYear = state.selectedYear;
+    const cacheKey = `${STORAGE_KEYS.DATA_PREFIX}${selectedYear - 1}_${selectedYear + 1}`;
+    const cachedRaw = safeSessionGet(cacheKey);
+    if (!cachedRaw) return false;
+    try {
+      const cached = JSON.parse(cachedRaw);
+      if (cached && Array.isArray(cached.items)) {
+        hydrateData(cached);
+        setStatus('success', cached.syncedAt || formatSyncTimestamp(new Date()));
+        triggerPageRender();
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   async function fetchCalendarData(forceRefresh = false) {
     const reqId = ++state.latestRequestId;
     const selectedYear = state.selectedYear;
@@ -643,19 +1229,8 @@
     const endYear = selectedYear + 1;
     const cacheKey = `${STORAGE_KEYS.DATA_PREFIX}${startYear}_${endYear}`;
 
-    if (!forceRefresh) {
-      const cachedRaw = safeSessionGet(cacheKey);
-      if (cachedRaw) {
-        try {
-          const cached = JSON.parse(cachedRaw);
-          if (cached && Array.isArray(cached.items)) {
-            hydrateData(cached);
-            setStatus('success', cached.syncedAt || formatSyncTimestamp(new Date()));
-            triggerPageRender();
-            return;
-          }
-        } catch (_) {}
-      }
+    if (!forceRefresh && hydrateCalendarFromCacheSync()) {
+      return;
     }
 
     const refreshBtn = document.getElementById('refreshBtn');
@@ -1005,7 +1580,6 @@
 
     const actualQualifyingNights = yearDates.size;
 
-    // 1) 結轉房晚（優先讀取「IHG活動」日曆手動指定，否則依前一年實際定級房晚自動計算）
     const manualRoll = state.rollovers.find(r => r.year === y);
     let rolloverNights = 0;
     let rolloverSource = 'auto';
@@ -1020,7 +1594,6 @@
       else rolloverNights = 0;
     }
 
-    // 2) 定向加倍活動統計
     const yearStartIso = `${y}-01-01`;
     const yearEndIso = `${y}-12-31`;
     const yearPromos = state.promos.filter(p => p.startDate <= yearEndIso && p.endDate >= yearStartIso);
@@ -1086,7 +1659,7 @@
   }
 
   // =========================================================================
-  // 公開 API
+  // 啟動流程（優先同步快取渲染，讓跨頁滑動進場時直接呈現完整數據）
   // =========================================================================
   async function startApp() {
     try {
@@ -1094,9 +1667,26 @@
       renderSharedChrome();
       initYearSelect(state.selectedYear);
 
-      setStatus('loading', '讀取匯率...');
-      await loadExchangeRates(false, 3500);
-      await fetchCalendarData(false);
+      // 不支援 onpagereveal 的舊瀏覽器，在此觸發滑入動畫
+      if (!supportsCrossDocVT()) {
+        const pending = readPendingTransition();
+        if (pending && !prefersReducedMotion()) {
+          runFallbackEnterAnimation(pending);
+        }
+        safeSessionRemove(STORAGE_KEYS.NAV_TRANSITION);
+      }
+
+      // 優先同步命中 sessionStorage 快取，確保 View Transition 截圖時頁面已有內容
+      const ratesHit = hydrateRatesFromCacheSync();
+      const dataHit = hydrateCalendarFromCacheSync();
+
+      if (!ratesHit) {
+        setStatus('loading', '讀取匯率...');
+        await loadExchangeRates(false, 3500);
+      }
+      if (!dataHit) {
+        await fetchCalendarData(false);
+      }
     } catch (err) {
       console.error('初始化失敗:', err);
       setStatus('error', `錯誤：${err.message || err}`);
@@ -1151,6 +1741,12 @@
       state.activePage = activePage || 'index';
       state.hideControls = Boolean(hideControls);
       state.onRender = onRender || null;
+
+      // 立即渲染 Liquid Glass 導覽列與滑塊，讓 pagereveal 能即時捕捉目標位置
+      state.selectedYear = resolveInitialYear();
+      if (document.getElementById('appHeader')) {
+        renderSharedChrome();
+      }
 
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', startApp);
