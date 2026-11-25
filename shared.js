@@ -1,7 +1,8 @@
 // =========================================================================
-// IHG Duo - 共用核心模組 (shared.js v3.2 Liquid Glass Edition)
+// IHG Duo - 共用核心模組 (shared.js v4 Performance & SWR Edition)
 // 支援：最多 4 間房(8行)、雙軌會籍/獎勵計算、搶房提醒、雙向寫入 API、
-//       雙端 iOS Liquid Glass 導覽列（高對比手機霧面膠囊）、液態滑塊與跨頁滑動轉場
+//       雙端 iOS Liquid Glass 導覽列（高對比手機霧面膠囊）、液態滑塊與跨頁滑動轉場、
+//       並行載入匯率與日曆、localStorage SWR 秒開快取與自動版號清理
 // =========================================================================
 (function (global) {
   'use strict';
@@ -12,12 +13,16 @@
   const HOTEL_ANNUAL_CAP = 14;
   const POINTS_TO_TWD = 0.16;
   const MAX_ROOMS_PER_EVENT = 4;
+  const APP_DATA_VERSION = 'v4';
+  const RATES_TTL_MS = 12 * 60 * 60 * 1000;   // 匯率快取有效 12 小時
+  const DATA_FRESH_MS = 2 * 60 * 1000;        // 跨頁切換 2 分鐘內視為新鮮，不重複打 GAS
 
   const STORAGE_KEYS = {
-    SELECTED_YEAR: 'ihg_selected_year_v3',
-    RATES: 'ihg_exchange_rates_v3',
-    DATA_PREFIX: 'ihg_calendar_cache_v3_',
-    ADMIN_PIN: 'ihg_duo_admin_pin_v1',
+    DATA_VERSION: 'ihg_duo_data_version',
+    SELECTED_YEAR: 'ihg_selected_year_v4',
+    RATES: 'ihg_exchange_rates_v4',
+    DATA_PREFIX: 'ihg_calendar_cache_v4_',
+    ADMIN_PIN: 'ihg_duo_admin_pin_v1',        // 寫入安全鎖：升版與清除快取時絕對保留
     NAV_TRANSITION: 'ihg_duo_nav_transition_v1'
   };
 
@@ -147,7 +152,10 @@
     latestRequestId: 0,
     chromeRendered: false,
     nativeVTActive: false,
-    isNavigating: false
+    isNavigating: false,
+    lastRawPayload: null,
+    lastPayloadSignature: '',
+    hasHydratedData: false
   };
 
   // =========================================================================
@@ -172,15 +180,64 @@
     try { global.localStorage.removeItem(key); } catch (_) {}
   }
 
+  function ensureDataVersion() {
+    const savedVer = safeLocalGet(STORAGE_KEYS.DATA_VERSION);
+    if (savedVer === APP_DATA_VERSION) return;
+
+    const legacyPrefixes = [
+      'ihg_calendar_cache_',
+      'ihg_duo_calendar_cache_',
+      'ihg_exchange_rates_',
+      'ihg_duo_exchange_rates_'
+    ];
+
+    [global.localStorage, global.sessionStorage].forEach(store => {
+      try {
+        if (!store) return;
+        const toRemove = [];
+        for (let i = 0; i < store.length; i++) {
+          const k = store.key(i);
+          if (!k || k === STORAGE_KEYS.ADMIN_PIN) continue;
+          if (legacyPrefixes.some(p => k.startsWith(p))) {
+            toRemove.push(k);
+          }
+        }
+        toRemove.forEach(k => store.removeItem(k));
+      } catch (_) {}
+    });
+
+    safeLocalSet(STORAGE_KEYS.DATA_VERSION, APP_DATA_VERSION);
+  }
+
   function clearDataCache() {
+    state.lastPayloadSignature = '';
+    [global.localStorage, global.sessionStorage].forEach(store => {
+      try {
+        if (!store) return;
+        const toRemove = [];
+        for (let i = 0; i < store.length; i++) {
+          const k = store.key(i);
+          if (k && k !== STORAGE_KEYS.ADMIN_PIN && k.startsWith(STORAGE_KEYS.DATA_PREFIX)) {
+            toRemove.push(k);
+          }
+        }
+        toRemove.forEach(k => store.removeItem(k));
+      } catch (_) {}
+    });
+  }
+
+  function computePayloadSignature(payload) {
+    if (!payload) return '';
     try {
-      const toRemove = [];
-      for (let i = 0; i < global.sessionStorage.length; i++) {
-        const k = global.sessionStorage.key(i);
-        if (k && k.startsWith(STORAGE_KEYS.DATA_PREFIX)) toRemove.push(k);
-      }
-      toRemove.forEach(k => global.sessionStorage.removeItem(k));
-    } catch (_) {}
+      return JSON.stringify({
+        items: payload.items || [],
+        promos: payload.promos || [],
+        rollovers: payload.rollovers || [],
+        snipers: payload.snipers || []
+      });
+    } catch (_) {
+      return '';
+    }
   }
 
   function escapeHtml(str) {
@@ -1116,24 +1173,30 @@
   }
 
   function hydrateRatesFromCacheSync() {
-    const cachedRaw = safeSessionGet(STORAGE_KEYS.RATES);
-    if (!cachedRaw) return false;
+    const cachedRaw = safeLocalGet(STORAGE_KEYS.RATES);
+    if (!cachedRaw) return { hit: false, fresh: false };
     try {
       const cached = JSON.parse(cachedRaw);
       if (cached && cached.rates) {
         state.exchangeRates = { ...DEFAULT_RATES, ...cached.rates };
         state.ratesLoadedFromLive = Boolean(cached.live);
         updateDynamicRateDisplay();
-        return true;
+        const savedAt = typeof cached.savedAt === 'number' ? cached.savedAt : 0;
+        const isFresh = Boolean(cached.live) && savedAt > 0 && (Date.now() - savedAt) < RATES_TTL_MS;
+        return { hit: true, fresh: isFresh };
       }
     } catch (_) {}
-    return false;
+    return { hit: false, fresh: false };
   }
 
   async function loadExchangeRates(forceRefresh = false, timeoutMs = 3500) {
-    if (!forceRefresh && hydrateRatesFromCacheSync()) {
-      return;
+    if (!forceRefresh) {
+      const cacheInfo = hydrateRatesFromCacheSync();
+      if (cacheInfo.fresh) return false;
     }
+
+    const prevRates = { ...state.exchangeRates };
+    const prevLive = state.ratesLoadedFromLive;
 
     let timerId = null;
     try {
@@ -1146,23 +1209,41 @@
 
       const data = await res.json();
       if (data && data.result === 'success' && data.rates) {
+        const nextRates = { ...state.exchangeRates };
         SUPPORTED_CURRENCIES.forEach(cur => {
           if (cur !== 'TWD' && data.rates[cur]) {
-            state.exchangeRates[cur] = 1 / data.rates[cur];
+            nextRates[cur] = 1 / data.rates[cur];
           }
         });
+        nextRates.TWD = 1;
+
+        const ratesChanged = !prevLive || SUPPORTED_CURRENCIES.some(
+          cur => Math.abs((nextRates[cur] || 0) - (prevRates[cur] || 0)) > 1e-7
+        );
+
+        state.exchangeRates = nextRates;
         state.ratesLoadedFromLive = true;
-        safeSessionSet(STORAGE_KEYS.RATES, JSON.stringify({ rates: state.exchangeRates, live: true }));
+        safeLocalSet(STORAGE_KEYS.RATES, JSON.stringify({
+          rates: state.exchangeRates,
+          live: true,
+          savedAt: Date.now()
+        }));
         updateDynamicRateDisplay();
-        return;
+
+        // 若日曆資料已先渲染（快取或並行先到達），且即時匯率有變動，背景無縫重算台幣金額
+        if (ratesChanged && state.hasHydratedData && state.lastRawPayload) {
+          hydrateData(state.lastRawPayload);
+          triggerPageRender();
+        }
+        return true;
       }
     } catch (e) {
       if (timerId) clearTimeout(timerId);
-      console.warn('即時匯率取得失敗，改用預設匯率', e);
+      console.warn('即時匯率取得失敗，改用快取或預設匯率', e);
     }
 
-    state.ratesLoadedFromLive = false;
     updateDynamicRateDisplay();
+    return false;
   }
 
   function jsonpRequest(url, timeoutMs = 20000) {
@@ -1231,36 +1312,44 @@
   function hydrateCalendarFromCacheSync() {
     const selectedYear = state.selectedYear;
     const cacheKey = `${STORAGE_KEYS.DATA_PREFIX}${selectedYear - 1}_${selectedYear + 1}`;
-    const cachedRaw = safeSessionGet(cacheKey);
-    if (!cachedRaw) return false;
+    const cachedRaw = safeLocalGet(cacheKey);
+    if (!cachedRaw) return { hit: false, fresh: false };
     try {
       const cached = JSON.parse(cachedRaw);
       if (cached && Array.isArray(cached.items)) {
+        state.lastRawPayload = cached;
+        state.lastPayloadSignature = computePayloadSignature(cached);
+        state.hasHydratedData = true;
         hydrateData(cached);
         setStatus('success', cached.syncedAt || formatSyncTimestamp(new Date()));
         triggerPageRender();
-        return true;
+        const savedAt = typeof cached.savedAt === 'number' ? cached.savedAt : 0;
+        const isFresh = savedAt > 0 && (Date.now() - savedAt) < DATA_FRESH_MS;
+        return { hit: true, fresh: isFresh };
       }
     } catch (_) {}
-    return false;
+    return { hit: false, fresh: false };
   }
 
-  async function fetchCalendarData(forceRefresh = false) {
+  async function fetchCalendarData(forceRefresh = false, opts = {}) {
     const reqId = ++state.latestRequestId;
     const selectedYear = state.selectedYear;
     const startYear = selectedYear - 1;
     const endYear = selectedYear + 1;
     const cacheKey = `${STORAGE_KEYS.DATA_PREFIX}${startYear}_${endYear}`;
 
-    if (!forceRefresh && hydrateCalendarFromCacheSync()) {
-      return;
+    let isBackground = Boolean(opts.background);
+    if (!forceRefresh && !opts.alreadyHydrated) {
+      const cacheInfo = hydrateCalendarFromCacheSync();
+      if (cacheInfo.fresh) return;
+      if (cacheInfo.hit) isBackground = true;
     }
 
     const refreshBtn = document.getElementById('refreshBtn');
     const refreshIcon = document.getElementById('refreshIcon');
-    if (refreshBtn) refreshBtn.disabled = true;
+    if (refreshBtn && !isBackground) refreshBtn.disabled = true;
     if (refreshIcon) refreshIcon.classList.add('animate-spin');
-    setStatus('loading', '同步中...');
+    setStatus('loading', isBackground ? '更新中...' : '同步中...');
 
     try {
       const query = new URLSearchParams({
@@ -1275,24 +1364,43 @@
         throw new Error((data && data.message) || '後端回傳資料格式異常');
       }
 
+      const now = new Date();
       const payload = {
         items: data.items || [],
         promos: data.promos || [],
         rollovers: data.rollovers || [],
         snipers: data.snipers || [],
-        syncedAt: formatSyncTimestamp(new Date())
+        syncedAt: formatSyncTimestamp(now),
+        savedAt: now.getTime()
       };
-      safeSessionSet(cacheKey, JSON.stringify(payload));
+      safeLocalSet(cacheKey, JSON.stringify(payload));
 
-      hydrateData(payload);
+      const nextSig = computePayloadSignature(payload);
+      const dataChanged = !isBackground || !state.hasHydratedData || nextSig !== state.lastPayloadSignature;
+
+      state.lastRawPayload = payload;
+      state.lastPayloadSignature = nextSig;
+      state.hasHydratedData = true;
+
+      if (dataChanged) {
+        hydrateData(payload);
+        triggerPageRender();
+      }
       setStatus('success', payload.syncedAt);
-      triggerPageRender();
     } catch (err) {
       if (reqId !== state.latestRequestId) return;
       console.error(err);
-      setStatus('error', err.message || '同步失敗');
-      hydrateData({ items: [], promos: [], rollovers: [], snipers: [] });
-      triggerPageRender();
+      if (isBackground && state.hasHydratedData) {
+        // 背景同步失敗時保留畫面上的快取資料，不清空畫面
+        setStatus('error', '離線快取（同步失敗）');
+      } else {
+        setStatus('error', err.message || '同步失敗');
+        state.lastRawPayload = null;
+        state.lastPayloadSignature = '';
+        state.hasHydratedData = false;
+        hydrateData({ items: [], promos: [], rollovers: [], snipers: [] });
+        triggerPageRender();
+      }
     } finally {
       if (reqId === state.latestRequestId) {
         if (refreshBtn) refreshBtn.disabled = false;
@@ -1304,6 +1412,7 @@
   // =========================================================================
   // 核心解析與雙軌房晚計算引擎（支援最多 4 間房 / 8 行說明）
   // =========================================================================
+  let _htmlDecodeTextarea = null;
   function stripHtmlToLines(desc) {
     if (!desc) return [];
     const withNewlines = String(desc)
@@ -1311,9 +1420,11 @@
       .replace(/<\/p>/gi, '\n')
       .replace(/<\/div>/gi, '\n')
       .replace(/<[^>]+>/g, '');
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = withNewlines;
-    return textarea.value
+    if (!_htmlDecodeTextarea) {
+      _htmlDecodeTextarea = document.createElement('textarea');
+    }
+    _htmlDecodeTextarea.innerHTML = withNewlines;
+    return _htmlDecodeTextarea.value
       .split(/\r?\n/)
       .map(line => line.trim())
       .filter(line => line.length > 0);
@@ -1685,6 +1796,7 @@
   // =========================================================================
   async function startApp() {
     try {
+      ensureDataVersion();
       state.selectedYear = resolveInitialYear();
       renderSharedChrome();
       initYearSelect(state.selectedYear);
@@ -1697,15 +1809,24 @@
         safeSessionRemove(STORAGE_KEYS.NAV_TRANSITION);
       }
 
-      const ratesHit = hydrateRatesFromCacheSync();
-      const dataHit = hydrateCalendarFromCacheSync();
+      // 1. 同步讀取 localStorage 快取（0 秒秒開）
+      const ratesCache = hydrateRatesFromCacheSync();
+      const dataCache = hydrateCalendarFromCacheSync();
 
-      if (!ratesHit) {
-        setStatus('loading', '讀取匯率...');
-        await loadExchangeRates(false, 3500);
+      // 2. 並行觸發網路請求，消除匯率與日曆之間的串行等待
+      const tasks = [];
+      if (!ratesCache.fresh) {
+        tasks.push(loadExchangeRates(false, 3500));
       }
-      if (!dataHit) {
-        await fetchCalendarData(false);
+      if (!dataCache.fresh) {
+        tasks.push(fetchCalendarData(false, {
+          alreadyHydrated: dataCache.hit,
+          background: dataCache.hit
+        }));
+      }
+
+      if (tasks.length > 0) {
+        await Promise.all(tasks);
       }
     } catch (err) {
       console.error('初始化失敗:', err);
@@ -1721,6 +1842,7 @@
   });
 
   global.IHGApp = {
+    APP_DATA_VERSION,
     GAS_API_URL,
     ONESIGNAL_APP_ID,
     HOTEL_ANNUAL_CAP,
@@ -1758,6 +1880,7 @@
     },
 
     init({ activePage, hideControls = false, onRender }) {
+      ensureDataVersion();
       state.activePage = activePage || 'index';
       state.hideControls = Boolean(hideControls);
       state.onRender = onRender || null;
@@ -1793,8 +1916,9 @@
     async refresh(skipRates = false) {
       clearDataCache();
       setStatus('loading', '重新同步...');
-      if (!skipRates) await loadExchangeRates(true, 3500);
-      await fetchCalendarData(true);
+      const tasks = [fetchCalendarData(true)];
+      if (!skipRates) tasks.push(loadExchangeRates(true, 3500));
+      await Promise.all(tasks);
     },
 
     getState() {
