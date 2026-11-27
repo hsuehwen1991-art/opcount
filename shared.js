@@ -1,5 +1,5 @@
 // =========================================================================
-// IHG Duo - 共用核心模組 (shared.js v5 Translucent Liquid Glass & Splash Edition)
+// IHG Duo - 共用核心模組 (shared.js v6 Preloaded Splash & Translucent Liquid Glass Edition)
 // 支援：最多 4 間房(8行)、雙軌會籍/獎勵計算、搶房提醒、雙向寫入 API、
 //       半透明液態 Liquid Glass 導覽列、跨頁滑動轉場、3 秒像素貓咪冷啟動動畫、
 //       並行載入匯率與日曆、localStorage SWR 秒開快取與自動版號清理
@@ -10,6 +10,7 @@
   const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyDWevi8zV-rEJSx4qjcFQ4jLFeQK9Slw5twdel8UcA_73U34DcIrch_NyGOL08GE-a/exec';
   const ONESIGNAL_APP_ID = '6dd089b1-9382-4040-a935-29e08722b78e';
   const LOGO_BASE_PATH = './logos/';
+  const SPLASH_CAT_URL = `${LOGO_BASE_PATH}loading-cat.webp`;
   const HOTEL_ANNUAL_CAP = 14;
   const POINTS_TO_TWD = 0.16;
   const MAX_ROOMS_PER_EVENT = 4;
@@ -687,20 +688,38 @@
         text-align: center;
       }
 
-      .ihg-splash-cat {
+      .ihg-splash-media {
         width: 128px;
         height: 128px;
         margin: 0 auto 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ihg-splash-cat {
+        width: 128px;
+        height: 128px;
         object-fit: contain;
         image-rendering: pixelated;
         user-select: none;
         -webkit-user-drag: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+
+      .ihg-splash-cat.is-loaded {
+        opacity: 1;
+      }
+
+      .ihg-splash-cat.is-instant {
+        transition: none;
+        opacity: 1;
       }
 
       .ihg-splash-fallback {
         width: 84px;
         height: 84px;
-        margin: 0 auto 1rem;
         border-radius: 1.35rem;
         background: linear-gradient(135deg, #06b6d4 0%, #0284c7 55%, #4f46e5 100%);
         color: #ffffff;
@@ -877,10 +896,12 @@
       splashEl.setAttribute('aria-live', 'polite');
       splashEl.innerHTML = `
         <div class="ihg-splash-box">
-          <img id="ihg-splash-cat" src="./loading-cat.webp" width="128" height="128" alt="IHG Duo 載入中" class="ihg-splash-cat" />
-          <div id="ihg-splash-fallback" class="ihg-splash-fallback" aria-hidden="true">
-            <span style="font-size: 20px; letter-spacing: 0.08em; line-height: 1;">IHG</span>
-            <span style="font-size: 10px; letter-spacing: 0.2em; opacity: 0.9; margin-top: 4px;">DUO</span>
+          <div class="ihg-splash-media" role="img" aria-label="IHG Duo 載入中">
+            <img id="ihg-splash-cat" width="128" height="128" alt="" decoding="async" fetchpriority="high" class="ihg-splash-cat" />
+            <div id="ihg-splash-fallback" class="ihg-splash-fallback" aria-hidden="true">
+              <span style="font-size: 20px; letter-spacing: 0.08em; line-height: 1;">IHG</span>
+              <span style="font-size: 10px; letter-spacing: 0.2em; opacity: 0.9; margin-top: 4px;">DUO</span>
+            </div>
           </div>
           <div class="space-y-1.5">
             <div class="ihg-progress-track">
@@ -899,21 +920,23 @@
       pctEl = document.getElementById('ihg-splash-pct');
       statusEl = document.getElementById('ihg-splash-status');
 
-      // 依序嘗試根目錄、icons/、logos/ 的貓咪動圖，若尚未上傳則優雅降級為品牌浮動標誌
+      // 鎖定單一路徑 ./logos/loading-cat.webp，載入完成才顯示（完全避免 404 試錯與破圖閃現）
       const catImg = document.getElementById('ihg-splash-cat');
       const fallbackEl = document.getElementById('ihg-splash-fallback');
-      const candidatePaths = ['./loading-cat.webp', './icons/loading-cat.webp', './logos/loading-cat.webp'];
-      let pathIdx = 0;
       if (catImg) {
-        catImg.addEventListener('error', () => {
-          pathIdx++;
-          if (pathIdx < candidatePaths.length) {
-            catImg.src = candidatePaths[pathIdx];
-          } else {
-            catImg.style.display = 'none';
-            if (fallbackEl) fallbackEl.style.display = 'flex';
+        catImg.addEventListener('load', () => {
+          if (catImg.naturalWidth > 0) {
+            catImg.classList.add('is-loaded');
           }
-        });
+        }, { once: true });
+        catImg.addEventListener('error', () => {
+          catImg.style.display = 'none';
+          if (fallbackEl) fallbackEl.style.display = 'flex';
+        }, { once: true });
+        catImg.src = SPLASH_CAT_URL;
+        if (catImg.complete && catImg.naturalWidth > 0) {
+          catImg.classList.add('is-instant');
+        }
       }
     }
 
