@@ -67,7 +67,7 @@
         <div>
           <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
             <span class="w-1.5 h-4 rounded-full bg-indigo-500"></span>
-            住宿明細清單（<span id="detailYear">2026</span> 年）
+            住宿明細清單
           </h2>
           <p class="text-xs text-slate-500 mt-0.5">共 <span id="detailCount" class="font-mono-num font-semibold text-sky-700">0</span> 筆住宿紀錄</p>
         </div>
@@ -130,7 +130,7 @@
     </section>
   </main>
 
-  <script src="shared.js?v=4"></script>
+  <script src="shared.js?v=5"></script>
   <script>
     let currentYearList = [];
     let sortKey = 'checkIn';
@@ -282,7 +282,8 @@
     IHGApp.init({
       activePage: 'details',
       onRender({ selectedYear, yearBookings }) {
-        document.getElementById('detailYear').textContent = selectedYear;
+        const yrEl = document.getElementById('detailYear');
+        if (yrEl) yrEl.textContent = selectedYear;
         currentYearList = yearBookings;
         renderDetails();
       }

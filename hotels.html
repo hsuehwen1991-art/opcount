@@ -67,7 +67,7 @@
         <div>
           <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
             <span class="w-1.5 h-4 rounded-full bg-cyan-500"></span>
-            各飯店年度住宿總覽（<span id="hotelOverviewYear">2026</span> 日曆年）
+            各飯店年度住宿總覽
           </h2>
           <p class="text-xs text-slate-500 mt-0.5">飯店年度限額顯示剩餘可用額度（上限 14 晚）；晚數合計以該飯店定級房晚加總計算</p>
         </div>
@@ -101,10 +101,11 @@
     </section>
   </main>
 
-  <script src="shared.js?v=4"></script>
+  <script src="shared.js?v=5"></script>
   <script>
     function renderHotelOverview(selectedYear, list) {
-      document.getElementById('hotelOverviewYear').textContent = selectedYear;
+      const yrEl = document.getElementById('hotelOverviewYear');
+      if (yrEl) yrEl.textContent = selectedYear;
 
       const hotelMap = {};
       let grandYouxiang = 0, grandTanxing = 0, grandYouren = 0, grandOther = 0, grandQualifyingTotal = 0;

@@ -1,7 +1,7 @@
 // =========================================================================
-// IHG Duo - 共用核心模組 (shared.js v4 Performance & SWR Edition)
+// IHG Duo - 共用核心模組 (shared.js v5 Translucent Liquid Glass & Splash Edition)
 // 支援：最多 4 間房(8行)、雙軌會籍/獎勵計算、搶房提醒、雙向寫入 API、
-//       雙端 iOS Liquid Glass 導覽列（高對比手機霧面膠囊）、液態滑塊與跨頁滑動轉場、
+//       半透明液態 Liquid Glass 導覽列、跨頁滑動轉場、3 秒像素貓咪冷啟動動畫、
 //       並行載入匯率與日曆、localStorage SWR 秒開快取與自動版號清理
 // =========================================================================
 (function (global) {
@@ -16,6 +16,8 @@
   const APP_DATA_VERSION = 'v4';
   const RATES_TTL_MS = 12 * 60 * 60 * 1000;   // 匯率快取有效 12 小時
   const DATA_FRESH_MS = 2 * 60 * 1000;        // 跨頁切換 2 分鐘內視為新鮮，不重複打 GAS
+  const SPLASH_MIN_MS = 3000;                 // 冷啟動貓咪動畫最少播放 3 秒
+  const SPLASH_MAX_WAIT_MS = 6500;            // 弱網／離線防呆上限 6.5 秒
 
   const STORAGE_KEYS = {
     DATA_VERSION: 'ihg_duo_data_version',
@@ -23,7 +25,8 @@
     RATES: 'ihg_exchange_rates_v4',
     DATA_PREFIX: 'ihg_calendar_cache_v4_',
     ADMIN_PIN: 'ihg_duo_admin_pin_v1',        // 寫入安全鎖：升版與清除快取時絕對保留
-    NAV_TRANSITION: 'ihg_duo_nav_transition_v1'
+    NAV_TRANSITION: 'ihg_duo_nav_transition_v1',
+    BOOTED: 'ihg_duo_booted_v1'               // sessionStorage 冷啟動旗標（換頁不重播動畫）
   };
 
   const NAV_ITEMS = [
@@ -462,37 +465,37 @@
         }
       }
 
-      /* 頂部頁首：Liquid Glass 透明層 */
+      /* 頂部頁首：純淨半透明液態玻璃層 */
       .lg-header {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(244, 250, 255, 0.62) 100%);
-        backdrop-filter: blur(26px) saturate(190%) brightness(1.03);
-        -webkit-backdrop-filter: blur(26px) saturate(190%) brightness(1.03);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.82);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0.36) 100%);
+        backdrop-filter: blur(28px) saturate(200%) brightness(1.04);
+        -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.04);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.74);
         box-shadow:
-          0 8px 28px -12px rgba(15, 23, 42, 0.10),
-          inset 0 -1px 0 rgba(14, 165, 233, 0.10);
+          0 8px 26px -12px rgba(15, 23, 42, 0.09),
+          inset 0 -1px 0 rgba(255, 255, 255, 0.45);
         view-transition-name: ihg-header;
       }
 
-      /* 電腦版頂部 Liquid Glass 膠囊 */
+      /* 電腦版頂部 Liquid Glass 膠囊：去淺藍底，保留通透液態折射 */
       .lg-glass-capsule {
         position: relative;
         background: linear-gradient(
           180deg,
-          rgba(255, 255, 255, 0.62) 0%,
-          rgba(242, 248, 255, 0.40) 52%,
-          rgba(255, 255, 255, 0.54) 100%
+          rgba(255, 255, 255, 0.46) 0%,
+          rgba(255, 255, 255, 0.18) 52%,
+          rgba(255, 255, 255, 0.34) 100%
         );
-        backdrop-filter: blur(28px) saturate(200%) brightness(1.05);
-        -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.05);
-        border: 1px solid rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(28px) saturate(210%) brightness(1.06);
+        -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.06);
+        border: 1px solid rgba(255, 255, 255, 0.76);
         box-shadow:
-          0 14px 36px -10px rgba(15, 23, 42, 0.16),
-          0 4px 14px -4px rgba(14, 165, 233, 0.14),
-          inset 0 1.5px 1.5px rgba(255, 255, 255, 0.96),
-          inset 0 -1px 1.5px rgba(148, 163, 184, 0.22),
-          inset 1px 0 1px rgba(255, 255, 255, 0.55),
-          inset -1px 0 1px rgba(255, 255, 255, 0.55);
+          0 14px 36px -10px rgba(15, 23, 42, 0.14),
+          0 2px 10px -2px rgba(15, 23, 42, 0.06),
+          inset 0 1.5px 1.5px rgba(255, 255, 255, 0.94),
+          inset 0 -1px 1.5px rgba(15, 23, 42, 0.08),
+          inset 1px 0 1px rgba(255, 255, 255, 0.56),
+          inset -1px 0 1px rgba(255, 255, 255, 0.56);
       }
 
       .lg-glass-capsule::before {
@@ -501,47 +504,49 @@
         inset: 1px 1px auto 1px;
         height: 46%;
         border-radius: inherit;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0) 100%);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.56) 0%, rgba(255, 255, 255, 0) 100%);
         pointer-events: none;
         z-index: 0;
       }
 
-      /* 手機版懸浮 Liquid Glass 膠囊：提高霧面不透明度，防止底層內容干擾按鈕辨識 */
+      /* 手機版懸浮 Liquid Glass 膠囊：半透明液態玻璃基底＋高倍率折射模糊，兼具通透與按鈕清晰度 */
       .lg-mobile-dock {
         background: linear-gradient(
           180deg,
-          rgba(255, 255, 255, 0.90) 0%,
-          rgba(244, 249, 255, 0.82) 52%,
-          rgba(255, 255, 255, 0.88) 100%
+          rgba(255, 255, 255, 0.58) 0%,
+          rgba(255, 255, 255, 0.34) 52%,
+          rgba(255, 255, 255, 0.48) 100%
         );
-        backdrop-filter: blur(30px) saturate(185%) brightness(1.02);
-        -webkit-backdrop-filter: blur(30px) saturate(185%) brightness(1.02);
-        border: 1px solid rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(32px) saturate(215%) brightness(1.05);
+        -webkit-backdrop-filter: blur(32px) saturate(215%) brightness(1.05);
+        border: 1px solid rgba(255, 255, 255, 0.80);
         box-shadow:
-          0 14px 34px -8px rgba(15, 23, 42, 0.22),
-          0 4px 14px -4px rgba(14, 165, 233, 0.16),
-          0 0 0 1px rgba(148, 163, 184, 0.18),
-          inset 0 1.5px 1.5px rgba(255, 255, 255, 1),
-          inset 0 -1px 1.5px rgba(148, 163, 184, 0.24);
+          0 14px 36px -8px rgba(15, 23, 42, 0.20),
+          0 3px 12px -3px rgba(15, 23, 42, 0.08),
+          0 0 0 0.5px rgba(15, 23, 42, 0.08),
+          inset 0 1.5px 2px rgba(255, 255, 255, 0.98),
+          inset 0 -1.5px 2px rgba(15, 23, 42, 0.09),
+          inset 1px 0 1.5px rgba(255, 255, 255, 0.62),
+          inset -1px 0 1.5px rgba(255, 255, 255, 0.62);
       }
 
       .lg-mobile-dock::before {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.70) 0%, rgba(255, 255, 255, 0) 100%);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.54) 0%, rgba(255, 255, 255, 0) 100%);
       }
 
       .lg-desktop-nav {
         box-shadow:
-          0 8px 22px -10px rgba(15, 23, 42, 0.14),
-          0 2px 8px -3px rgba(14, 165, 233, 0.12),
-          inset 0 1.5px 1px rgba(255, 255, 255, 0.96),
-          inset 0 -1px 1px rgba(148, 163, 184, 0.18);
+          0 8px 22px -10px rgba(15, 23, 42, 0.13),
+          0 2px 8px -3px rgba(15, 23, 42, 0.06),
+          inset 0 1.5px 1px rgba(255, 255, 255, 0.94),
+          inset 0 -1px 1px rgba(15, 23, 42, 0.08);
       }
 
       #mobileBottomNav {
         view-transition-name: ihg-bottom-nav;
       }
 
-      /* 液態玻璃滑塊（Active Sliding Pill） */
+      /* 液態玻璃滑塊（Active Sliding Pill）：純淨半透明水滴透鏡感（無淺藍填色） */
       .lg-pill-track {
         position: absolute;
         inset: 6px;
@@ -558,15 +563,17 @@
         background: linear-gradient(
           180deg,
           rgba(255, 255, 255, 0.78) 0%,
-          rgba(224, 242, 254, 0.48) 54%,
-          rgba(186, 230, 253, 0.56) 100%
+          rgba(255, 255, 255, 0.30) 54%,
+          rgba(255, 255, 255, 0.54) 100%
         );
-        border: 1px solid rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(12px) saturate(190%);
+        -webkit-backdrop-filter: blur(12px) saturate(190%);
+        border: 1px solid rgba(255, 255, 255, 0.92);
         box-shadow:
-          0 6px 16px -4px rgba(14, 165, 233, 0.28),
-          0 2px 6px -2px rgba(15, 23, 42, 0.08),
-          inset 0 1.5px 1.5px rgba(255, 255, 255, 1),
-          inset 0 -1.5px 3px rgba(14, 165, 233, 0.20);
+          0 6px 16px -4px rgba(15, 23, 42, 0.14),
+          0 1.5px 4px -1px rgba(15, 23, 42, 0.06),
+          inset 0 2px 2px rgba(255, 255, 255, 1),
+          inset 0 -1.5px 3px rgba(15, 23, 42, 0.08);
         pointer-events: none;
         will-change: transform, left, width;
       }
@@ -575,14 +582,18 @@
         border-radius: 22px;
         background: linear-gradient(
           180deg,
-          rgba(224, 242, 254, 0.96) 0%,
-          rgba(186, 230, 253, 0.78) 100%
+          rgba(255, 255, 255, 0.76) 0%,
+          rgba(255, 255, 255, 0.30) 54%,
+          rgba(255, 255, 255, 0.52) 100%
         );
-        border: 1px solid rgba(125, 211, 252, 0.72);
+        backdrop-filter: blur(14px) saturate(200%);
+        -webkit-backdrop-filter: blur(14px) saturate(200%);
+        border: 1px solid rgba(255, 255, 255, 0.94);
         box-shadow:
-          0 4px 12px -3px rgba(14, 165, 233, 0.30),
-          inset 0 1.5px 1.5px rgba(255, 255, 255, 0.96),
-          inset 0 -1px 2px rgba(14, 165, 233, 0.20);
+          0 5px 14px -3px rgba(15, 23, 42, 0.16),
+          0 1px 3px rgba(15, 23, 42, 0.06),
+          inset 0 2px 2px rgba(255, 255, 255, 1),
+          inset 0 -1.5px 3px rgba(15, 23, 42, 0.09);
         view-transition-name: ihg-mobile-pill;
         transition: transform 0.4s var(--ihg-spring), box-shadow 0.25s ease;
       }
@@ -600,9 +611,9 @@
 
       .lg-pill.is-gliding {
         box-shadow:
-          0 10px 24px -5px rgba(14, 165, 233, 0.36),
-          inset 0 2px 2px rgba(255, 255, 255, 1),
-          inset 0 -2px 4px rgba(56, 189, 248, 0.26);
+          0 10px 24px -5px rgba(15, 23, 42, 0.18),
+          inset 0 2px 3px rgba(255, 255, 255, 1),
+          inset 0 -2px 4px rgba(148, 163, 184, 0.22);
       }
 
       .lg-pill.is-bouncing {
@@ -624,23 +635,105 @@
         transform: scale(0.94);
       }
 
-      /* 全站卡片微調：融入淺色 Liquid Glass 視覺 */
+      /* 全站卡片微調：純淨半透明毛玻璃 */
       .tech-card {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.80) 0%, rgba(248, 252, 255, 0.70) 100%) !important;
-        backdrop-filter: blur(20px) saturate(175%) !important;
-        -webkit-backdrop-filter: blur(20px) saturate(175%) !important;
-        border: 1px solid rgba(255, 255, 255, 0.86) !important;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.64) 100%) !important;
+        backdrop-filter: blur(22px) saturate(185%) !important;
+        -webkit-backdrop-filter: blur(22px) saturate(185%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.84) !important;
         box-shadow:
           0 8px 28px -10px rgba(15, 23, 42, 0.08),
-          0 2px 8px -2px rgba(14, 165, 233, 0.06),
+          0 2px 8px -2px rgba(15, 23, 42, 0.04),
           inset 0 1px 1px rgba(255, 255, 255, 0.96) !important;
       }
 
       .tech-card.tech-card-hover:hover {
-        border-color: rgba(56, 189, 248, 0.55) !important;
+        border-color: rgba(255, 255, 255, 0.98) !important;
         box-shadow:
-          0 12px 32px -8px rgba(14, 165, 233, 0.16),
+          0 12px 32px -8px rgba(15, 23, 42, 0.13),
           inset 0 1px 1px rgba(255, 255, 255, 1) !important;
+      }
+
+      /* 冷啟動 3 秒像素貓咪覆蓋層（僅新工作階段冷啟動顯示，換頁不重播） */
+      html.ihg-splash-active,
+      html.ihg-splash-active body {
+        overflow: hidden;
+      }
+
+      #ihg-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        background-color: #f3f7fc;
+        background-image:
+          radial-gradient(circle at 15% 10%, rgba(14, 165, 233, 0.10) 0%, transparent 42%),
+          radial-gradient(circle at 85% 90%, rgba(99, 102, 241, 0.08) 0%, transparent 42%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        transition: opacity 0.34s ease, transform 0.34s var(--ihg-ease-out);
+      }
+
+      #ihg-splash.ihg-splash-exit {
+        opacity: 0;
+        transform: scale(1.03);
+        pointer-events: none;
+      }
+
+      .ihg-splash-box {
+        width: 100%;
+        max-width: 248px;
+        text-align: center;
+      }
+
+      .ihg-splash-cat {
+        width: 128px;
+        height: 128px;
+        margin: 0 auto 0.75rem;
+        object-fit: contain;
+        image-rendering: pixelated;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .ihg-splash-fallback {
+        width: 84px;
+        height: 84px;
+        margin: 0 auto 1rem;
+        border-radius: 1.35rem;
+        background: linear-gradient(135deg, #06b6d4 0%, #0284c7 55%, #4f46e5 100%);
+        color: #ffffff;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        box-shadow: 0 12px 28px -8px rgba(2, 132, 199, 0.42);
+        animation: ihg-splash-float 1.6s ease-in-out infinite;
+      }
+
+      .ihg-progress-track {
+        width: 100%;
+        height: 8px;
+        border-radius: 9999px;
+        background: rgba(203, 213, 225, 0.72);
+        overflow: hidden;
+        padding: 1px;
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+
+      .ihg-progress-fill {
+        height: 100%;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, #38bdf8 0%, #0284c7 55%, #06b6d4 100%);
+        box-shadow: 0 0 10px rgba(2, 132, 199, 0.40);
+        transition: width 0.12s linear;
+      }
+
+      @keyframes ihg-splash-float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
       }
 
       /* 頁面主內容區：參與跨頁滑動轉場 */
@@ -748,7 +841,7 @@
         ::view-transition-new(*) {
           animation-duration: 0.01ms !important;
         }
-        .lg-pill, main {
+        .lg-pill, main, #ihg-splash, .ihg-splash-fallback {
           transition: none !important;
           animation: none !important;
         }
@@ -758,6 +851,139 @@
   }
 
   injectLiquidGlassStyles();
+
+  // =========================================================================
+  // 冷啟動 3 秒像素貓咪啟動畫面控制器（MayMayHome 共用殼層模式：換分頁不重播）
+  // =========================================================================
+  const splashCtrl = (function initColdStartSplash() {
+    const noop = { active: false, setStatus() {}, markReady() {} };
+    if (safeSessionGet(STORAGE_KEYS.BOOTED) === '1') {
+      return noop;
+    }
+
+    const startTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    let syncReady = false;
+    let finished = false;
+    let splashEl = null;
+    let barEl = null;
+    let pctEl = null;
+    let statusEl = null;
+
+    function mountSplash() {
+      if (splashEl || !document.body) return;
+      document.documentElement.classList.add('ihg-splash-active');
+      splashEl = document.createElement('div');
+      splashEl.id = 'ihg-splash';
+      splashEl.setAttribute('aria-live', 'polite');
+      splashEl.innerHTML = `
+        <div class="ihg-splash-box">
+          <img id="ihg-splash-cat" src="./loading-cat.webp" width="128" height="128" alt="IHG Duo 載入中" class="ihg-splash-cat" />
+          <div id="ihg-splash-fallback" class="ihg-splash-fallback" aria-hidden="true">
+            <span style="font-size: 20px; letter-spacing: 0.08em; line-height: 1;">IHG</span>
+            <span style="font-size: 10px; letter-spacing: 0.2em; opacity: 0.9; margin-top: 4px;">DUO</span>
+          </div>
+          <div class="space-y-1.5">
+            <div class="ihg-progress-track">
+              <div id="ihg-splash-bar" class="ihg-progress-fill" style="width: 4%;"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] font-medium text-slate-500 px-0.5">
+              <span id="ihg-splash-status">正在啟動 IHG Duo...</span>
+              <span id="ihg-splash-pct" class="font-mono-num text-sky-700 font-semibold">4%</span>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.prepend(splashEl);
+
+      barEl = document.getElementById('ihg-splash-bar');
+      pctEl = document.getElementById('ihg-splash-pct');
+      statusEl = document.getElementById('ihg-splash-status');
+
+      // 依序嘗試根目錄、icons/、logos/ 的貓咪動圖，若尚未上傳則優雅降級為品牌浮動標誌
+      const catImg = document.getElementById('ihg-splash-cat');
+      const fallbackEl = document.getElementById('ihg-splash-fallback');
+      const candidatePaths = ['./loading-cat.webp', './icons/loading-cat.webp', './logos/loading-cat.webp'];
+      let pathIdx = 0;
+      if (catImg) {
+        catImg.addEventListener('error', () => {
+          pathIdx++;
+          if (pathIdx < candidatePaths.length) {
+            catImg.src = candidatePaths[pathIdx];
+          } else {
+            catImg.style.display = 'none';
+            if (fallbackEl) fallbackEl.style.display = 'flex';
+          }
+        });
+      }
+    }
+
+    function setBar(pct) {
+      const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+      if (barEl) barEl.style.width = clamped + '%';
+      if (pctEl) pctEl.textContent = clamped + '%';
+    }
+
+    function dismiss() {
+      if (finished) return;
+      finished = true;
+      safeSessionSet(STORAGE_KEYS.BOOTED, '1');
+      setBar(100);
+      if (statusEl) statusEl.textContent = '準備完成！';
+      setTimeout(() => {
+        if (!splashEl) {
+          document.documentElement.classList.remove('ihg-splash-active');
+          return;
+        }
+        splashEl.classList.add('ihg-splash-exit');
+        setTimeout(() => {
+          if (splashEl && splashEl.parentNode) splashEl.parentNode.removeChild(splashEl);
+          document.documentElement.classList.remove('ihg-splash-active');
+        }, 350);
+      }, 200);
+    }
+
+    function tick(nowTs) {
+      if (finished) return;
+      const now = (typeof nowTs === 'number') ? nowTs : ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
+      const elapsed = Math.max(0, now - startTime);
+      const ratio = Math.min(1, elapsed / SPLASH_MIN_MS);
+      const eased = 1 - Math.pow(1 - ratio, 2.2);
+      const visualPct = 4 + eased * (syncReady ? 94 : 88);
+      setBar(visualPct);
+
+      if (elapsed >= SPLASH_MIN_MS && (syncReady || elapsed >= SPLASH_MAX_WAIT_MS)) {
+        dismiss();
+        return;
+      }
+      if (typeof global.requestAnimationFrame === 'function') {
+        global.requestAnimationFrame(tick);
+      } else {
+        setTimeout(() => tick(Date.now()), 32);
+      }
+    }
+
+    if (document.body) {
+      mountSplash();
+    } else {
+      document.addEventListener('DOMContentLoaded', mountSplash, { once: true });
+    }
+
+    if (typeof global.requestAnimationFrame === 'function') {
+      global.requestAnimationFrame(tick);
+    } else {
+      setTimeout(() => tick(Date.now()), 32);
+    }
+
+    return {
+      active: true,
+      setStatus(text) {
+        if (!finished && statusEl && text) statusEl.textContent = text;
+      },
+      markReady() {
+        syncReady = true;
+      }
+    };
+  })();
   (function primeInitialDirection() {
     const pending = readPendingTransition();
     if (pending && (pending.dir === 'forward' || pending.dir === 'backward')) {
@@ -1341,7 +1567,7 @@
     let isBackground = Boolean(opts.background);
     if (!forceRefresh && !opts.alreadyHydrated) {
       const cacheInfo = hydrateCalendarFromCacheSync();
-      if (cacheInfo.fresh) return;
+      if (cacheInfo.fresh && !opts.forceNetwork) return;
       if (cacheInfo.hit) isBackground = true;
     }
 
@@ -1809,28 +2035,41 @@
         safeSessionRemove(STORAGE_KEYS.NAV_TRANSITION);
       }
 
-      // 1. 同步讀取 localStorage 快取（0 秒秒開）
+      // 1. 同步讀取 localStorage 快取（0 秒秒開／離線保底）
       const ratesCache = hydrateRatesFromCacheSync();
       const dataCache = hydrateCalendarFromCacheSync();
 
-      // 2. 並行觸發網路請求，消除匯率與日曆之間的串行等待
+      // 2. 並行觸發網路請求：冷啟動期間一律於貓咪 3 秒動畫背後同步最新日曆；站內換頁則依 2 分鐘新鮮度吃快取秒開
       const tasks = [];
+      const needCalendarSync = splashCtrl.active || !dataCache.fresh;
+
+      if (splashCtrl.active) {
+        splashCtrl.setStatus(ratesCache.fresh ? '同步最新日曆資料...' : '同步即時匯率與日曆資料...');
+      }
+
       if (!ratesCache.fresh) {
         tasks.push(loadExchangeRates(false, 3500));
       }
-      if (!dataCache.fresh) {
+      if (needCalendarSync) {
         tasks.push(fetchCalendarData(false, {
           alreadyHydrated: dataCache.hit,
-          background: dataCache.hit
+          background: dataCache.hit,
+          forceNetwork: splashCtrl.active
         }));
       }
 
       if (tasks.length > 0) {
         await Promise.all(tasks);
       }
+
+      if (splashCtrl.active) {
+        splashCtrl.setStatus('計算雙軌會籍與額度...');
+        splashCtrl.markReady();
+      }
     } catch (err) {
       console.error('初始化失敗:', err);
       setStatus('error', `錯誤：${err.message || err}`);
+      splashCtrl.markReady();
     }
   }
 

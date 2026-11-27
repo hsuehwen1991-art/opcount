@@ -94,6 +94,18 @@
       to   { opacity: 1; transform: translate3d(0, 0, 0); }
     }
 
+    /* 防止 iOS Safari 日期選擇器超出卡片框寬度 */
+    input[type="date"] {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 2.375rem;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .solid-subtab-pill { transition: none !important; }
       .subtab-slide-from-right,
@@ -216,10 +228,10 @@
 
             <!-- 飯店名稱 ＋ 品牌即時預覽 -->
             <div>
-              <label for="bfHotelName" class="block text-xs font-semibold text-slate-600 mb-1.5">飯店名稱（可點選歷史快選避免錯字）</label>
+              <label for="bfHotelName" class="block text-xs font-semibold text-slate-600 mb-1.5">飯店名稱</label>
               <div class="flex items-center gap-2.5">
                 <div id="bfBrandPreview" class="shrink-0"></div>
-                <input id="bfHotelName" type="text" list="hotelHistoryList" required placeholder="例如：臺北洲際酒店"
+                <input id="bfHotelName" type="text" list="hotelHistoryList" required placeholder="輸入或點選歷史飯店"
                   oninput="onBookingFormChanged()"
                   class="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
               </div>
@@ -227,25 +239,25 @@
 
             <!-- 入住日 / 退房日 -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
+              <div class="min-w-0">
                 <label for="bfCheckIn" class="block text-xs font-semibold text-slate-600 mb-1.5">入住日</label>
                 <input id="bfCheckIn" type="date" required onchange="onBookingDateChanged('in')"
-                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
+                  class="w-full max-w-full min-w-0 box-border rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
               </div>
-              <div>
+              <div class="min-w-0">
                 <div class="flex items-center justify-between mb-1.5">
                   <label for="bfCheckOut" class="text-xs font-semibold text-slate-600">退房日</label>
                   <span id="bfNightsBadge" class="font-mono-num text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/70">共 1 晚</span>
                 </div>
                 <input id="bfCheckOut" type="date" required onchange="onBookingDateChanged('out')"
-                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
+                  class="w-full max-w-full min-w-0 box-border rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono-num focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 outline-none" />
               </div>
             </div>
 
             <!-- 動態房間區（1 ~ 4 間房） -->
             <div class="space-y-3">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-600">房間方案與價格（最多支援 4 間房）</span>
+                <span class="text-xs font-bold text-slate-600">房間方案與價格</span>
                 <button type="button" id="addRoomBtn" onclick="addBookingRoom()" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-semibold transition">
                   ＋ 新增第 2 間房
                 </button>
@@ -334,20 +346,20 @@
               <label for="sfHotelName" class="block text-xs font-semibold text-slate-600 mb-1.5">目標飯店名稱</label>
               <div class="flex items-center gap-2.5">
                 <div id="sfBrandPreview" class="shrink-0"></div>
-                <input id="sfHotelName" type="text" list="hotelHistoryList" required placeholder="例如：東京全日空洲際酒店"
+                <input id="sfHotelName" type="text" list="hotelHistoryList" required placeholder="輸入或點選歷史飯店"
                   oninput="updateSniperPreview()"
                   class="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium focus:ring-2 focus:ring-amber-500/40 focus:border-amber-400 outline-none" />
               </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <label for="sfCheckIn" class="block text-xs font-semibold text-slate-600 mb-1.5">預計入住日（第 1 晚）</label>
+              <div class="min-w-0">
+                <label for="sfCheckIn" class="block text-xs font-semibold text-slate-600 mb-1.5">預計入住日</label>
                 <input id="sfCheckIn" type="date" required onchange="updateSniperPreview()"
-                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num focus:ring-2 focus:ring-amber-500/40 outline-none" />
+                  class="w-full max-w-full min-w-0 box-border rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono-num focus:ring-2 focus:ring-amber-500/40 outline-none" />
               </div>
-              <div id="sfNightsWrapper">
-                <label for="sfNights" class="block text-xs font-semibold text-slate-600 mb-1.5">預計連住晚數（自動拆成逐日提醒）</label>
+              <div id="sfNightsWrapper" class="min-w-0">
+                <label for="sfNights" class="block text-xs font-semibold text-slate-600 mb-1.5">預計連住晚數</label>
                 <select id="sfNights" onchange="updateSniperPreview()"
                   class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-800 outline-none">
                   <option value="1">1 晚（單日提醒）</option>
@@ -363,7 +375,7 @@
 
             <!-- 飯店所在時區（保留 3 顆常用快選按鈕 ＋ 完整下拉） -->
             <div class="space-y-2">
-              <label for="sfTimeZone" class="block text-xs font-semibold text-slate-600">飯店所在時區（以當地 00:00 開放反推台灣時間）</label>
+              <label for="sfTimeZone" class="block text-xs font-semibold text-slate-600">飯店所在時區</label>
               <div class="flex flex-wrap gap-1.5">
                 <button type="button" data-tz-group="Asia/Taipei" onclick="pickSniperTz('Asia/Taipei')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700 transition">台灣 UTC+8</button>
                 <button type="button" data-tz-group="Asia/Tokyo,Asia/Seoul" onclick="pickSniperTz('Asia/Tokyo')" class="tz-pill px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-sky-50 text-slate-700 transition">日本/韓國 UTC+9</button>
@@ -424,7 +436,7 @@
           <div class="px-4 sm:px-5 py-4 border-b border-slate-200/80 bg-slate-50/50">
             <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
               <span class="w-1.5 h-4 rounded-full bg-amber-500"></span>
-              待搶目標倒數清單（同步自「IHG活動」日曆）
+              待搶目標倒數清單
             </h2>
             <p class="text-xs text-slate-500 mt-0.5">搶房成功後可直接點擊「轉正式訂房」，自動帶入資料並移除原提醒與推播</p>
           </div>
@@ -450,26 +462,26 @@
           <form id="promoForm" onsubmit="submitPromoForm(event)" class="p-4 sm:p-5 space-y-4">
             <input type="hidden" id="pfEventId" value="" />
             <div>
-              <label for="pfName" class="block text-xs font-semibold text-slate-600 mb-1.5">活動名稱（系統會自動加上【IHG加倍】前綴）</label>
-              <input id="pfName" type="text" required placeholder="例如：Q1 雙倍房晚定向活動"
+              <label for="pfName" class="block text-xs font-semibold text-slate-600 mb-1.5">活動名稱</label>
+              <input id="pfName" type="text" required placeholder="輸入活動名稱"
                 class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500/40" />
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
+              <div class="min-w-0">
                 <label for="pfStartDate" class="block text-xs font-semibold text-slate-600 mb-1.5">活動開始日</label>
-                <input id="pfStartDate" type="date" required class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none" />
+                <input id="pfStartDate" type="date" required class="w-full max-w-full min-w-0 box-border rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono-num outline-none" />
               </div>
-              <div>
-                <label for="pfEndDate" class="block text-xs font-semibold text-slate-600 mb-1.5">活動結束日（含當日）</label>
-                <input id="pfEndDate" type="date" required class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none" />
+              <div class="min-w-0">
+                <label for="pfEndDate" class="block text-xs font-semibold text-slate-600 mb-1.5">活動結束日</label>
+                <input id="pfEndDate" type="date" required class="w-full max-w-full min-w-0 box-border rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono-num outline-none" />
               </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
-              <div>
-                <label for="pfCap" class="block text-xs font-semibold text-slate-600 mb-1.5">活動贈送上限（晚數）</label>
-                <input id="pfCap" type="number" min="1" max="365" value="5" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none disabled:bg-slate-100 disabled:text-slate-400" />
+              <div class="min-w-0">
+                <label for="pfCap" class="block text-xs font-semibold text-slate-600 mb-1.5">活動贈送上限</label>
+                <input id="pfCap" type="number" inputmode="numeric" min="1" max="365" value="5" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-mono-num outline-none disabled:bg-slate-100 disabled:text-slate-400" />
               </div>
               <div class="flex flex-col gap-2 pb-1">
                 <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
@@ -514,7 +526,7 @@
   <div id="pinModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
       <div>
-        <h3 class="text-base font-bold text-slate-900">輸入操作安全密碼（PIN）</h3>
+        <h3 class="text-base font-bold text-slate-900">輸入操作安全密碼</h3>
         <p class="text-xs text-slate-500 mt-1">為了保護公開儲存庫的日曆寫入權限，新增、修改或刪除前須驗證一次密碼。</p>
       </div>
       <form onsubmit="submitPinModal(event)" class="space-y-3">
@@ -563,7 +575,7 @@
     </div>
   </div>
 
-  <script src="shared.js?v=4"></script>
+  <script src="shared.js?v=5"></script>
   <script>
     // =========================================================================
     // 狀態管理
@@ -1032,8 +1044,8 @@
                 </select>
               </div>
               <div class="col-span-7 sm:col-span-8">
-                <label class="block text-[11px] font-semibold text-slate-500 mb-1">金額 / 積分數值（純數字）</label>
-                <input type="number" step="any" min="0" required value="${IHGApp.escapeHtml(rm.amount)}" placeholder="例如：3314"
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1">金額 / 積分數值</label>
+                <input type="number" inputmode="decimal" step="any" min="0" required value="${IHGApp.escapeHtml(rm.amount)}"
                   oninput="updateRoomField(${idx}, 'amount', this.value)"
                   class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-mono-num outline-none" />
               </div>
@@ -1351,7 +1363,7 @@
           <div class="text-xs font-bold text-slate-700">第 ${idx + 1} 間房：${IHGApp.escapeHtml(rm.planRaw)}</div>
           <div class="flex items-center gap-2">
             <span class="text-xs font-mono-num text-slate-500">${rm.currency === 'POINTS' ? '積分' : rm.currency}</span>
-            <input type="number" step="any" min="0" id="mergeRoomAmt_${idx}" value="${rm.amount}"
+            <input type="number" inputmode="decimal" step="any" min="0" id="mergeRoomAmt_${idx}" value="${rm.amount}"
               class="flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono-num font-semibold outline-none" />
           </div>
         </div>
