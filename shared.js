@@ -1,5 +1,5 @@
 // =========================================================================
-// IHG Duo - 共用核心模組 (shared.js v6 Preloaded Splash & Translucent Liquid Glass Edition)
+// IHG Duo - 共用核心模組 (shared.js v7 True 3-Layer Liquid Glass Edition)
 // 支援：最多 4 間房(8行)、雙軌會籍/獎勵計算、搶房提醒、雙向寫入 API、
 //       半透明液態 Liquid Glass 導覽列、跨頁滑動轉場、3 秒像素貓咪冷啟動動畫、
 //       並行載入匯率與日曆、localStorage SWR 秒開快取與自動版號清理
@@ -478,81 +478,79 @@
         view-transition-name: ihg-header;
       }
 
-      /* 電腦版頂部 Liquid Glass 膠囊：去淺藍底，保留通透液態折射 */
-      .lg-glass-capsule {
+      /* =====================================================================
+         三層獨立式 Liquid Glass 導覽列架構（底層 20% 玻璃 → 中層字樣 → 頂層透明水滴）
+         ===================================================================== */
+      .lg-glass-shell {
         position: relative;
-        background: linear-gradient(
-          180deg,
-          rgba(255, 255, 255, 0.46) 0%,
-          rgba(255, 255, 255, 0.18) 52%,
-          rgba(255, 255, 255, 0.34) 100%
-        );
-        backdrop-filter: blur(28px) saturate(210%) brightness(1.06);
-        -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.06);
-        border: 1px solid rgba(255, 255, 255, 0.76);
-        box-shadow:
-          0 14px 36px -10px rgba(15, 23, 42, 0.14),
-          0 2px 10px -2px rgba(15, 23, 42, 0.06),
-          inset 0 1.5px 1.5px rgba(255, 255, 255, 0.94),
-          inset 0 -1px 1.5px rgba(15, 23, 42, 0.08),
-          inset 1px 0 1px rgba(255, 255, 255, 0.56),
-          inset -1px 0 1px rgba(255, 255, 255, 0.56);
+        isolation: isolate;
       }
 
-      .lg-glass-capsule::before {
+      /* Layer 1：最底層玻璃膠囊（約 20% 半透明白底 ＋ 高倍率毛玻璃折射） */
+      .lg-dock-surface {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        z-index: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.26) 0%,
+          rgba(255, 255, 255, 0.16) 52%,
+          rgba(255, 255, 255, 0.22) 100%
+        );
+        backdrop-filter: blur(22px) saturate(185%) brightness(1.03);
+        -webkit-backdrop-filter: blur(22px) saturate(185%) brightness(1.03);
+        border: 1px solid rgba(255, 255, 255, 0.62);
+        box-shadow:
+          0 12px 32px -10px rgba(15, 23, 42, 0.16),
+          0 2px 8px -2px rgba(15, 23, 42, 0.06),
+          inset 0 1px 1.5px rgba(255, 255, 255, 0.85),
+          inset 0 -1px 1.5px rgba(15, 23, 42, 0.08);
+      }
+
+      .lg-dock-surface::before {
         content: '';
         position: absolute;
         inset: 1px 1px auto 1px;
-        height: 46%;
+        height: 44%;
         border-radius: inherit;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.56) 0%, rgba(255, 255, 255, 0) 100%);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0) 100%);
         pointer-events: none;
-        z-index: 0;
       }
 
-      /* 手機版懸浮 Liquid Glass 膠囊：半透明液態玻璃基底＋高倍率折射模糊，兼具通透與按鈕清晰度 */
-      .lg-mobile-dock {
-        background: linear-gradient(
-          180deg,
-          rgba(255, 255, 255, 0.58) 0%,
-          rgba(255, 255, 255, 0.34) 52%,
-          rgba(255, 255, 255, 0.48) 100%
-        );
-        backdrop-filter: blur(32px) saturate(215%) brightness(1.05);
-        -webkit-backdrop-filter: blur(32px) saturate(215%) brightness(1.05);
-        border: 1px solid rgba(255, 255, 255, 0.80);
-        box-shadow:
-          0 14px 36px -8px rgba(15, 23, 42, 0.20),
-          0 3px 12px -3px rgba(15, 23, 42, 0.08),
-          0 0 0 0.5px rgba(15, 23, 42, 0.08),
-          inset 0 1.5px 2px rgba(255, 255, 255, 0.98),
-          inset 0 -1.5px 2px rgba(15, 23, 42, 0.09),
-          inset 1px 0 1.5px rgba(255, 255, 255, 0.62),
-          inset -1px 0 1.5px rgba(255, 255, 255, 0.62);
+      .lg-dock-surface-mobile {
+        view-transition-name: ihg-bottom-nav-bg;
       }
 
-      .lg-mobile-dock::before {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.54) 0%, rgba(255, 255, 255, 0) 100%);
-      }
-
-      .lg-desktop-nav {
+      .lg-dock-surface-desktop {
+        view-transition-name: ihg-desktop-nav-bg;
         box-shadow:
           0 8px 22px -10px rgba(15, 23, 42, 0.13),
           0 2px 8px -3px rgba(15, 23, 42, 0.06),
-          inset 0 1.5px 1px rgba(255, 255, 255, 0.94),
-          inset 0 -1px 1px rgba(15, 23, 42, 0.08);
+          inset 0 1px 1px rgba(255, 255, 255, 0.85),
+          inset 0 -1px 1px rgba(15, 23, 42, 0.07);
       }
 
-      #mobileBottomNav {
-        view-transition-name: ihg-bottom-nav;
+      /* Layer 2：選單字樣與圖示層（獨立 View Transition 圖層，確保換頁與移動絕不被覆蓋） */
+      .lg-mobile-items {
+        position: relative;
+        z-index: 10;
+        view-transition-name: ihg-bottom-nav-items;
       }
 
-      /* 液態玻璃滑塊（Active Sliding Pill）：純淨半透明水滴透鏡感（無淺藍填色） */
+      .lg-desktop-items {
+        position: relative;
+        z-index: 10;
+        view-transition-name: ihg-desktop-nav-items;
+      }
+
+      /* Layer 3：頂層液態透明位置指示器（純透明水滴鏡面外框，不加 backdrop-filter 與實白填色，移動時絕不變白塊） */
       .lg-pill-track {
         position: absolute;
         inset: 6px;
         pointer-events: none;
-        z-index: 0;
+        z-index: 20;
       }
 
       .lg-pill {
@@ -563,38 +561,35 @@
         border-radius: 9999px;
         background: linear-gradient(
           180deg,
-          rgba(255, 255, 255, 0.78) 0%,
-          rgba(255, 255, 255, 0.30) 54%,
-          rgba(255, 255, 255, 0.54) 100%
+          rgba(255, 255, 255, 0.34) 0%,
+          rgba(255, 255, 255, 0.05) 42%,
+          rgba(255, 255, 255, 0.02) 72%,
+          rgba(255, 255, 255, 0.22) 100%
         );
-        backdrop-filter: blur(12px) saturate(190%);
-        -webkit-backdrop-filter: blur(12px) saturate(190%);
-        border: 1px solid rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.82);
         box-shadow:
-          0 6px 16px -4px rgba(15, 23, 42, 0.14),
-          0 1.5px 4px -1px rgba(15, 23, 42, 0.06),
-          inset 0 2px 2px rgba(255, 255, 255, 1),
-          inset 0 -1.5px 3px rgba(15, 23, 42, 0.08);
+          0 4px 14px -4px rgba(15, 23, 42, 0.14),
+          0 1px 3px rgba(15, 23, 42, 0.06),
+          inset 0 1.5px 2px rgba(255, 255, 255, 0.96),
+          inset 0 -1.5px 2.5px rgba(15, 23, 42, 0.10),
+          inset 1px 0 1.5px rgba(255, 255, 255, 0.58),
+          inset -1px 0 1.5px rgba(255, 255, 255, 0.58);
         pointer-events: none;
         will-change: transform, left, width;
       }
 
+      .lg-pill::before {
+        content: '';
+        position: absolute;
+        inset: 1px 10% auto 10%;
+        height: 36%;
+        border-radius: inherit;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0) 100%);
+        pointer-events: none;
+      }
+
       .lg-pill-mobile {
         border-radius: 22px;
-        background: linear-gradient(
-          180deg,
-          rgba(255, 255, 255, 0.76) 0%,
-          rgba(255, 255, 255, 0.30) 54%,
-          rgba(255, 255, 255, 0.52) 100%
-        );
-        backdrop-filter: blur(14px) saturate(200%);
-        -webkit-backdrop-filter: blur(14px) saturate(200%);
-        border: 1px solid rgba(255, 255, 255, 0.94);
-        box-shadow:
-          0 5px 14px -3px rgba(15, 23, 42, 0.16),
-          0 1px 3px rgba(15, 23, 42, 0.06),
-          inset 0 2px 2px rgba(255, 255, 255, 1),
-          inset 0 -1.5px 3px rgba(15, 23, 42, 0.09);
         view-transition-name: ihg-mobile-pill;
         transition: transform 0.4s var(--ihg-spring), box-shadow 0.25s ease;
       }
@@ -602,6 +597,7 @@
       .lg-pill-desktop {
         top: 5px;
         bottom: 5px;
+        z-index: 20;
         view-transition-name: ihg-desktop-pill;
         transition: left 0.4s var(--ihg-spring), width 0.4s var(--ihg-spring), box-shadow 0.25s ease;
       }
@@ -612,9 +608,11 @@
 
       .lg-pill.is-gliding {
         box-shadow:
-          0 10px 24px -5px rgba(15, 23, 42, 0.18),
+          0 8px 20px -5px rgba(15, 23, 42, 0.18),
           inset 0 2px 3px rgba(255, 255, 255, 1),
-          inset 0 -2px 4px rgba(148, 163, 184, 0.22);
+          inset 0 -2px 3.5px rgba(15, 23, 42, 0.12),
+          inset 1.5px 0 2px rgba(255, 255, 255, 0.72),
+          inset -1.5px 0 2px rgba(255, 255, 255, 0.72);
       }
 
       .lg-pill.is-bouncing {
@@ -624,6 +622,7 @@
       .lg-nav-link {
         position: relative;
         z-index: 1;
+        text-shadow: 0 1px 2px rgba(255, 255, 255, 0.55);
         transition: color 0.22s ease, transform 0.22s var(--ihg-spring), background-color 0.2s ease;
         -webkit-tap-highlight-color: transparent;
       }
@@ -770,13 +769,35 @@
       ::view-transition-old(ihg-header) { display: none; }
       ::view-transition-new(ihg-header) { animation: none; }
 
-      ::view-transition-group(ihg-bottom-nav) {
+      /* Layer 1：底層玻璃膠囊固定於 z-index 40 */
+      ::view-transition-group(ihg-bottom-nav-bg),
+      ::view-transition-group(ihg-desktop-nav-bg) {
         z-index: 40;
         animation-duration: 0ms;
       }
-      ::view-transition-old(ihg-bottom-nav) { display: none; }
-      ::view-transition-new(ihg-bottom-nav) { animation: none; }
+      ::view-transition-old(ihg-bottom-nav-bg),
+      ::view-transition-old(ihg-desktop-nav-bg) { display: none; }
+      ::view-transition-new(ihg-bottom-nav-bg),
+      ::view-transition-new(ihg-desktop-nav-bg) {
+        animation: none;
+        mix-blend-mode: normal;
+      }
 
+      /* Layer 2：選單字樣與圖示固定於 z-index 42（置於底層之上） */
+      ::view-transition-group(ihg-bottom-nav-items),
+      ::view-transition-group(ihg-desktop-nav-items) {
+        z-index: 42;
+        animation-duration: 0ms;
+      }
+      ::view-transition-old(ihg-bottom-nav-items),
+      ::view-transition-old(ihg-desktop-nav-items) { display: none; }
+      ::view-transition-new(ihg-bottom-nav-items),
+      ::view-transition-new(ihg-desktop-nav-items) {
+        animation: none;
+        mix-blend-mode: normal;
+      }
+
+      /* Layer 3：頂層液態透明位置滑塊於 z-index 45 透明滑過（無實白底色、保持下方藍色字樣清晰可見） */
       ::view-transition-group(ihg-desktop-pill),
       ::view-transition-group(ihg-mobile-pill) {
         z-index: 45;
@@ -790,6 +811,7 @@
       ::view-transition-new(ihg-desktop-pill),
       ::view-transition-new(ihg-mobile-pill) {
         height: 100%;
+        mix-blend-mode: normal;
         animation: ihg-liquid-stretch 380ms cubic-bezier(0.28, 1.24, 0.36, 1);
       }
 
@@ -849,9 +871,9 @@
         100% { transform: scale(1, 1); }
       }
       @keyframes ihg-liquid-bounce {
-        0%   { filter: brightness(1); transform: scale(1); }
-        40%  { filter: brightness(1.08); transform: scale(1.06, 0.94); }
-        100% { filter: brightness(1); transform: scale(1); }
+        0%   { filter: brightness(1); scale: 1 1; }
+        40%  { filter: brightness(1.08); scale: 1.06 0.94; }
+        100% { filter: brightness(1); scale: 1 1; }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -1231,11 +1253,12 @@
               </div>
             </a>
 
-            <nav id="desktopLiquidNav" aria-label="主導覽列" class="hidden md:flex items-center lg-glass-capsule lg-desktop-nav rounded-full p-1.5">
-              <div id="desktopLiquidPill" class="lg-pill lg-pill-desktop" style="opacity: 0;" aria-hidden="true"></div>
-              <div class="relative z-10 flex items-center gap-0.5">
+            <nav id="desktopLiquidNav" aria-label="主導覽列" class="hidden md:flex items-center lg-glass-shell rounded-full p-1.5">
+              <div class="lg-dock-surface lg-dock-surface-desktop" aria-hidden="true"></div>
+              <div class="lg-desktop-items flex items-center gap-0.5">
                 ${desktopNavHtml}
               </div>
+              <div id="desktopLiquidPill" class="lg-pill lg-pill-desktop" style="opacity: 0;" aria-hidden="true"></div>
             </nav>
 
             <div class="flex items-center gap-2 shrink-0">
@@ -1265,14 +1288,12 @@
     }
     bottomNav.className = 'md:hidden fixed bottom-0 inset-x-0 z-40 pointer-events-none px-3.5 safe-bottom-dock';
     bottomNav.innerHTML = `
-      <div id="mobileLiquidDock" class="pointer-events-auto lg-glass-capsule lg-mobile-dock relative mx-auto max-w-md rounded-[28px] p-1.5">
-        <div class="lg-pill-track" aria-hidden="true">
-          <div id="mobileLiquidPill" class="lg-pill lg-pill-mobile" style="width: ${100 / NAV_ITEMS.length}%; transform: translate3d(${activeIdx * 100}%, 0, 0);"></div>
-        </div>
-        <div class="relative z-10 grid grid-cols-5">
+      <div id="mobileLiquidDock" class="pointer-events-auto lg-glass-shell relative mx-auto max-w-md rounded-[28px] p-1.5">
+        <div class="lg-dock-surface lg-dock-surface-mobile" aria-hidden="true"></div>
+        <div class="lg-mobile-items grid grid-cols-5">
           ${NAV_ITEMS.map((item, idx) => {
             const isActive = item.id === state.activePage;
-            const colorCls = isActive ? 'text-sky-700 font-bold' : 'text-slate-700 hover:text-slate-900 font-medium';
+            const colorCls = isActive ? 'text-sky-600 font-bold' : 'text-slate-700 hover:text-slate-900 font-medium';
             return `
               <a data-nav-href="${item.href}" data-nav-id="${item.id}" data-nav-index="${idx}" href="${item.href}?year=${state.selectedYear}"
                  class="nav-link-item lg-nav-link flex flex-col items-center justify-center gap-0.5 py-2 rounded-[22px] ${colorCls}">
@@ -1283,6 +1304,9 @@
               </a>
             `;
           }).join('')}
+        </div>
+        <div class="lg-pill-track" aria-hidden="true">
+          <div id="mobileLiquidPill" class="lg-pill lg-pill-mobile" style="width: ${100 / NAV_ITEMS.length}%; transform: translate3d(${activeIdx * 100}%, 0, 0);"></div>
         </div>
       </div>
     `;
