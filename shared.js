@@ -1,5 +1,5 @@
 // =========================================================================
-// IHG Duo - 共用核心模組 (shared.js v7 True 3-Layer Liquid Glass Edition)
+// IHG Duo - 共用核心模組 (shared.js v8 App Icon Badge & True 3-Layer Liquid Glass Edition)
 // 支援：最多 4 間房(8行)、雙軌會籍/獎勵計算、搶房提醒、雙向寫入 API、
 //       半透明液態 Liquid Glass 導覽列、跨頁滑動轉場、3 秒像素貓咪冷啟動動畫、
 //       並行載入匯率與日曆、localStorage SWR 秒開快取與自動版號清理
@@ -19,6 +19,7 @@
   const DATA_FRESH_MS = 2 * 60 * 1000;        // 跨頁切換 2 分鐘內視為新鮮，不重複打 GAS
   const SPLASH_MIN_MS = 3000;                 // 冷啟動貓咪動畫最少播放 3 秒
   const SPLASH_MAX_WAIT_MS = 6500;            // 弱網／離線防呆上限 6.5 秒
+  const BADGE_CACHE_NAME = 'ihg-duo-badge-v1'; // App Icon 未讀推播計數快取
 
   const STORAGE_KEYS = {
     DATA_VERSION: 'ihg_duo_data_version',
@@ -243,6 +244,139 @@
       return '';
     }
   }
+
+  // =========================================================================
+  // App Icon 通知數字管理（Web Badging API，模式 A：進搶房分頁才清除）
+  // =========================================================================
+  function getBadgeCacheKey() {
+    try {
+      return new URL('__ihg_duo_badge_count__', global.location.href).href;
+    } catch (_) {
+      return '/__ihg_duo_badge_count__';
+    }
+  }
+
+  async function readNotificationBadgeCount() {
+    try {
+      if (typeof global.caches === 'undefined') return 0;
+      const cache = await global.caches.open(BADGE_CACHE_NAME);
+      const res = await cache.match(getBadgeCacheKey());
+      if (!res) return 0;
+      const data = await res.json();
+      const n = Number(data && data.count);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  async function writeNotificationBadgeCount(count) {
+    const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+    try {
+      if (typeof global.caches !== 'undefined') {
+        const cache = await global.caches.open(BADGE_CACHE_NAME);
+        await cache.put(
+          getBadgeCacheKey(),
+          new Response(JSON.stringify({ count: safeCount, updatedAt: Date.now() }), {
+            headers: { 'Content-Type': 'application/json' }
+          })
+        );
+      }
+    } catch (_) {}
+    return safeCount;
+  }
+
+  function renderNavUnreadBadges(count) {
+    const n = Math.max(0, Math.floor(Number(count) || 0));
+    const label = n > 9 ? '9+' : String(n);
+    document.querySelectorAll('[data-manage-unread-badge]').forEach(el => {
+      if (n > 0) {
+        el.textContent = label;
+        el.classList.remove('hidden');
+      } else {
+        el.textContent = '';
+        el.classList.add('hidden');
+      }
+    });
+    try {
+      global.dispatchEvent(new CustomEvent('ihg-badge-change', { detail: { count: n } }));
+    } catch (_) {}
+  }
+
+  async function applyNavigatorAppBadge(count) {
+    const n = Math.max(0, Math.floor(Number(count) || 0));
+    try {
+      if (n > 0) {
+        if (navigator && typeof navigator.setAppBadge === 'function') {
+          await navigator.setAppBadge(n);
+        }
+      } else {
+        if (navigator && typeof navigator.clearAppBadge === 'function') {
+          await navigator.clearAppBadge();
+        }
+      }
+    } catch (_) {}
+  }
+
+  async function syncNotificationBadge() {
+    const count = await readNotificationBadgeCount();
+    await applyNavigatorAppBadge(count);
+    renderNavUnreadBadges(count);
+    return count;
+  }
+
+  async function postBadgeMessageToSW(type) {
+    try {
+      if (!('serviceWorker' in navigator)) return;
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type });
+      }
+      const regs = await navigator.serviceWorker.getRegistrations();
+      regs.forEach(reg => {
+        if (reg && reg.active) {
+          try { reg.active.postMessage({ type }); } catch (_) {}
+        }
+      });
+    } catch (_) {}
+  }
+
+  async function clearNotificationBadge() {
+    await writeNotificationBadgeCount(0);
+    await applyNavigatorAppBadge(0);
+    renderNavUnreadBadges(0);
+    await postBadgeMessageToSW('IHG_BADGE_CLEAR');
+  }
+
+  function checkServiceWorkerUpdate() {
+    try {
+      if (!('serviceWorker' in navigator)) return;
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(reg => {
+          if (reg && typeof reg.update === 'function') {
+            reg.update().catch(() => {});
+          }
+        });
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  // 監聽 Service Worker 推播回傳的新未讀數，以及從背景切回前景時同步狀態
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      const msg = event && event.data;
+      if (msg && msg.type === 'IHG_BADGE_UPDATED') {
+        const n = Math.max(0, Math.floor(Number(msg.count) || 0));
+        applyNavigatorAppBadge(n);
+        renderNavUnreadBadges(n);
+      }
+    });
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      syncNotificationBadge();
+    }
+  });
 
   function escapeHtml(str) {
     return String(str || '')
@@ -633,6 +767,50 @@
 
       .lg-nav-link.is-tapped {
         transform: scale(0.94);
+      }
+
+      /* 站內「管理」導覽列未讀紅點（引導進入 180 天搶房分頁檢視並清除） */
+      .ihg-nav-unread-badge {
+        position: absolute;
+        top: -4px;
+        right: -8px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 9999px;
+        background: #f43f5e;
+        color: #ffffff;
+        font-family: 'JetBrains Mono', 'Inter', monospace;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 16px;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(244, 63, 94, 0.45);
+        border: 1.5px solid #ffffff;
+        pointer-events: none;
+      }
+
+      .ihg-desktop-unread-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 16px;
+        height: 16px;
+        margin-left: 4px;
+        padding: 0 4px;
+        border-radius: 9999px;
+        background: #f43f5e;
+        color: #ffffff;
+        font-family: 'JetBrains Mono', 'Inter', monospace;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        box-shadow: 0 2px 6px rgba(244, 63, 94, 0.35);
+      }
+
+      .ihg-nav-unread-badge.hidden,
+      .ihg-desktop-unread-badge.hidden {
+        display: none;
       }
 
       /* 全站卡片微調：純淨半透明毛玻璃 */
@@ -1229,10 +1407,13 @@
         const cls = isActive
           ? 'text-sky-700 font-semibold'
           : 'text-slate-600 hover:text-slate-900 font-medium';
+        const unreadHtml = item.id === 'manage'
+          ? '<span data-manage-unread-badge class="ihg-desktop-unread-badge hidden" aria-hidden="true"></span>'
+          : '';
         return `
           <a data-nav-href="${item.href}" data-nav-id="${item.id}" data-nav-index="${idx}" href="${item.href}?year=${state.selectedYear}"
-             class="nav-link-item lg-nav-link lg-desktop-link px-3.5 py-1.5 rounded-full text-sm whitespace-nowrap ${cls}">
-            ${item.label}
+             class="nav-link-item lg-nav-link lg-desktop-link inline-flex items-center px-3.5 py-1.5 rounded-full text-sm whitespace-nowrap ${cls}">
+            <span>${item.label}</span>${unreadHtml}
           </a>
         `;
       }).join('');
@@ -1294,12 +1475,18 @@
           ${NAV_ITEMS.map((item, idx) => {
             const isActive = item.id === state.activePage;
             const colorCls = isActive ? 'text-sky-600 font-bold' : 'text-slate-700 hover:text-slate-900 font-medium';
+            const unreadHtml = item.id === 'manage'
+              ? '<span data-manage-unread-badge class="ihg-nav-unread-badge hidden" aria-hidden="true"></span>'
+              : '';
             return `
               <a data-nav-href="${item.href}" data-nav-id="${item.id}" data-nav-index="${idx}" href="${item.href}?year=${state.selectedYear}"
                  class="nav-link-item lg-nav-link flex flex-col items-center justify-center gap-0.5 py-2 rounded-[22px] ${colorCls}">
-                <svg class="w-[21px] h-[21px]" fill="none" stroke="currentColor" stroke-width="${isActive ? '2.3' : '1.9'}" viewBox="0 0 24 24">
-                  ${item.icon}
-                </svg>
+                <span class="relative inline-flex items-center justify-center">
+                  <svg class="w-[21px] h-[21px]" fill="none" stroke="currentColor" stroke-width="${isActive ? '2.3' : '1.9'}" viewBox="0 0 24 24">
+                    ${item.icon}
+                  </svg>
+                  ${unreadHtml}
+                </span>
                 <span class="text-[11px] leading-tight tracking-tight">${item.shortLabel}</span>
               </a>
             `;
@@ -2073,6 +2260,10 @@
       state.selectedYear = resolveInitialYear();
       renderSharedChrome();
       initYearSelect(state.selectedYear);
+      syncNotificationBadge();
+      if (splashCtrl.active) {
+        checkServiceWorkerUpdate();
+      }
 
       if (!supportsCrossDocVT()) {
         const pending = readPendingTransition();
@@ -2151,6 +2342,9 @@
     parsePlanInfo,
     clearDataCache,
     postApi,
+    getNotificationBadgeCount: readNotificationBadgeCount,
+    syncNotificationBadge,
+    clearNotificationBadge,
 
     getSavedPin() { return safeLocalGet(STORAGE_KEYS.ADMIN_PIN) || ''; },
     savePin(pin) { safeLocalSet(STORAGE_KEYS.ADMIN_PIN, String(pin || '')); },

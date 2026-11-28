@@ -183,9 +183,10 @@
           <span>正式訂房</span>
           <span id="badgeBookingCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-white/25 text-white transition-colors duration-200">0</span>
         </button>
-        <button id="tabBtn-sniper" type="button" role="tab" aria-selected="false" onclick="switchSubTab('sniper')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 select-none">
+        <button id="tabBtn-sniper" type="button" role="tab" aria-selected="false" onclick="switchSubTab('sniper')" class="subtab-btn relative py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 select-none">
           <span>180 天搶房</span>
           <span id="badgeSniperCount" class="font-mono-num text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 transition-colors duration-200">0</span>
+          <span id="sniperUnreadDot" class="hidden absolute top-1 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-mono-num font-bold leading-4 text-center shadow-sm ring-2 ring-white" aria-label="未讀搶房通知"></span>
         </button>
         <button id="tabBtn-promo" type="button" role="tab" aria-selected="false" onclick="switchSubTab('promo')" class="subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 select-none">
           <span>加倍活動</span>
@@ -576,7 +577,7 @@
     </div>
   </div>
 
-  <script src="shared.js?v=7"></script>
+  <script src="shared.js?v=8"></script>
   <script>
     // =========================================================================
     // 狀態管理
@@ -859,17 +860,22 @@
       }
 
       // 2. 更新按鈕文字、徽章與內容面板滑動進場
+      const countBadgeMap = {
+        booking: 'badgeBookingCount',
+        sniper: 'badgeSniperCount',
+        promo: 'badgePromoCount'
+      };
       SUBTAB_ORDER.forEach(t => {
         const panel = document.getElementById('panel-' + t);
         const btn = document.getElementById('tabBtn-' + t);
-        const badge = btn && btn.querySelector('span:last-child');
+        const badge = document.getElementById(countBadgeMap[t]);
         const isTarget = t === tab;
 
         if (btn) {
           btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
           btn.className = isTarget
-            ? 'subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-white select-none'
-            : 'subtab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 select-none';
+            ? 'subtab-btn relative py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-white select-none'
+            : 'subtab-btn relative py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 select-none';
         }
         if (badge) {
           badge.className = isTarget
@@ -893,7 +899,25 @@
         }
       });
 
+      // 模式 A：進入「180 天搶房」分頁才歸零清除 App Icon 與站內通知紅點
+      if (tab === 'sniper' && window.IHGApp && typeof IHGApp.clearNotificationBadge === 'function') {
+        IHGApp.clearNotificationBadge();
+      }
+
       try { window.history.replaceState(null, '', `#${tab}`); } catch (_) {}
+    }
+
+    function updateSniperUnreadDot(count) {
+      const dot = document.getElementById('sniperUnreadDot');
+      if (!dot) return;
+      const n = Math.max(0, Math.floor(Number(count) || 0));
+      if (n > 0) {
+        dot.textContent = n > 9 ? '9+' : String(n);
+        dot.classList.remove('hidden');
+      } else {
+        dot.textContent = '';
+        dot.classList.add('hidden');
+      }
     }
 
     // =========================================================================
@@ -1886,6 +1910,28 @@
         switchSubTab(hash, false);
       } else {
         switchSubTab('booking', false);
+      }
+
+      window.addEventListener('ihg-badge-change', (e) => {
+        updateSniperUnreadDot(e && e.detail ? e.detail.count : 0);
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && activeSubTab === 'sniper') {
+          if (window.IHGApp && typeof IHGApp.clearNotificationBadge === 'function') {
+            IHGApp.clearNotificationBadge();
+          }
+        }
+      });
+
+      if (window.IHGApp && typeof IHGApp.getNotificationBadgeCount === 'function') {
+        IHGApp.getNotificationBadgeCount().then(count => {
+          if (activeSubTab === 'sniper') {
+            if (count > 0) IHGApp.clearNotificationBadge();
+          } else {
+            updateSniperUnreadDot(count);
+          }
+        });
       }
     });
   </script>
